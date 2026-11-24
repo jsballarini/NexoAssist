@@ -1,14 +1,15 @@
 # Documentação do projeto Nexo Assist
 
-**Versão do pacote de documentação:** 0.2.8  
+**Versão do pacote de documentação:** 0.3.0  
 **Última atualização:** 2026-11-24
 
 ## Propósito
 
 Este diretório consolida a especificação de iniciação, escopo, arquitetura, requisitos, testes e governança do **Nexo Assist** — agent de service desk de TI para o desafio técnico Beyond the Bytes, com entrega orientada a portfólio.
 
-**Baseline funcional imutável:** [Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](../Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf)  
-**Referência visual:** [nexo/nexo.pen](../nexo/nexo.pen) e imagens `Tela *.png` na raiz do repositório.
+**Baseline funcional imutável:** [Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf)  
+**Referência visual:** [desafio/README.md](desafio/README.md) — `nexo/nexo.pen` e PNGs `Tela *.png` em `docs/desafio/`.  
+**Lacunas baseline vs código:** [desafio/GAPS.md](desafio/GAPS.md).
 
 ## Convenções
 
@@ -57,6 +58,13 @@ Este diretório consolida a especificação de iniciação, escopo, arquitetura,
 | [04-02-registro-mudancas.md](04-registro-mudanca/04-02-registro-mudancas.md) | Controle de mudanças (SemVer docs) |
 | [04-03-as-built.md](04-registro-mudanca/04-03-as-built.md) | As built (preenchido ao concluir implementação) |
 
+### Desafio (baseline original)
+
+| Documento | Descrição |
+|-----------|-----------|
+| [desafio/README.md](desafio/README.md) | PDF PRD v5, protótipo Pencil, PNGs |
+| [desafio/GAPS.md](desafio/GAPS.md) | Lacunas baseline vs entrega `0.5.0-m5` |
+
 ### Anexos
 
 | Documento | Descrição |
@@ -86,7 +94,7 @@ Estado do monólito no repositório, operação local e marcos M1–M5 (compleme
 |-----------|-----------|
 | [desenvolvimento/README.md](desenvolvimento/README.md) | Índice da pasta |
 | [arquitetura-codigo.md](desenvolvimento/arquitetura-codigo.md) | Pastas, auth, diagrama M1 |
-| [status-implementacao.md](desenvolvimento/status-implementacao.md) | M1 concluído; M2–M5 pendentes |
+| [status-implementacao.md](desenvolvimento/status-implementacao.md) | Marcos M1–M5 (M5 concluído) |
 | [ambiente-e-comandos.md](desenvolvimento/ambiente-e-comandos.md) | ENV, Docker, testes, troubleshooting |
 
 Hub na raiz: [../README.md](../README.md) · histórico da app: [../CHANGELOG.md](../CHANGELOG.md).

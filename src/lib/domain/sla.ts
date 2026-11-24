@@ -130,7 +130,6 @@ function addBusinessDays(start: Date, days: number): Date {
 export function computeDueAt(
   priority: TicketPriority,
   openedAt: Date,
-  _clock: Clock = getClock(),
 ): Date {
   const base = openedAt;
 

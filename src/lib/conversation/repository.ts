@@ -2,7 +2,11 @@ import { prisma } from "@/lib/db";
 import type { ConversationState, MessageRole } from "@prisma/client";
 import type { AgentTracePayload, UiBlock } from "./types";
 
-const ACTIVE_EMPLOYEE_STATES: ConversationState[] = ["with_agent", "awaiting_analyst"];
+const ACTIVE_EMPLOYEE_STATES: ConversationState[] = [
+  "with_agent",
+  "awaiting_analyst",
+  "with_analyst",
+];
 
 export async function findActiveConversation(userId: string) {
   return prisma.conversation.findFirst({
@@ -23,11 +27,14 @@ export async function createConversation(userId: string, sessionSequence: number
 }
 
 export async function archiveAndCreateNew(userId: string) {
-  const current = await findActiveConversation(userId);
-  const nextSeq = (current?.sessionSequence ?? 0) + 1;
-  if (current) {
-    await prisma.conversation.update({
-      where: { id: current.id },
+  const actives = await prisma.conversation.findMany({
+    where: { userId, state: { in: ACTIVE_EMPLOYEE_STATES } },
+    select: { id: true, sessionSequence: true },
+  });
+  const nextSeq = Math.max(0, ...actives.map((c) => c.sessionSequence), 0) + 1;
+  if (actives.length > 0) {
+    await prisma.conversation.updateMany({
+      where: { id: { in: actives.map((c) => c.id) } },
       data: { state: "closed" },
     });
   }
@@ -119,5 +126,29 @@ export async function addSystemMessage(conversationId: string, content: string) 
       role: "system",
       content,
     },
+  });
+}
+
+export async function addAnalystMessage(conversationId: string, content: string) {
+  return prisma.$transaction(async (tx) => {
+    const msg = await tx.message.create({
+      data: {
+        conversationId,
+        role: "analyst" satisfies MessageRole,
+        content,
+      },
+    });
+    await tx.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+    return msg;
+  });
+}
+
+export async function getConversationById(conversationId: string) {
+  return prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { user: { select: { id: true, name: true, email: true, department: true } } },
   });
 }

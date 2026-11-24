@@ -37,6 +37,7 @@ export default defineConfig({
         process.env.SESSION_SECRET ?? "local-dev-session-secret-32chars!",
       AGENT_EVAL_FIXTURES: "true",
       TICKET_CHAOS_RATE: "0",
+      CHAOS_ENDPOINT_ENABLED: "true",
     },
   },
 });

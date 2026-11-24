@@ -35,6 +35,14 @@ export class ConversationAwaitingAnalystError extends Error {
   }
 }
 
+export class ConversationWithAnalystError extends Error {
+  readonly code = "CONVERSATION_WITH_ANALYST";
+  constructor() {
+    super("Conversa em atendimento com analista humano");
+    this.name = "ConversationWithAnalystError";
+  }
+}
+
 export type AgentTracePayload = {
   understanding: string;
   actions: string[];

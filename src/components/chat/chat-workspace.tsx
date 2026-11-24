@@ -85,8 +85,10 @@ export function ChatWorkspace() {
   }
 
   const awaiting = meta?.state === "awaiting_analyst";
+  const withAnalyst = meta?.state === "with_analyst";
   const atLimit = meta ? meta.messageCount >= meta.messageLimit : false;
-  const composerDisabled = streaming || !conversationId || awaiting || atLimit;
+  const composerDisabled =
+    streaming || !conversationId || awaiting || withAnalyst || atLimit;
 
   return (
     <div
@@ -100,6 +102,14 @@ export function ChatWorkspace() {
           role="status"
         >
           Aguardando analista — o assistente automático está pausado.
+        </div>
+      ) : null}
+      {withAnalyst ? (
+        <div
+          className="border-b border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900"
+          role="status"
+        >
+          Analista humano em atendimento — o assistente automático está pausado.
         </div>
       ) : null}
 

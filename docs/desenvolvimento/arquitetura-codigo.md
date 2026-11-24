@@ -1,28 +1,41 @@
 # Arquitetura do código (estado atual)
 
-**Marco:** M4 — Mutações via draft + transfer  
+**Marco:** M5 — Console analista + CI/hardening  
 **Referência:** [02-03](../02-especificacao/02-03-especificacao-tecnica.md), [02-07](../02-especificacao/02-07-contratos-api.md)
 
-## Visão M4
+## Visão M5
 
 ```mermaid
 flowchart LR
-  UI[Chat UI]
-  API[api/conversations + drafts]
+  subgraph employee [Employee]
+    ChatUI[Chat_UI]
+  end
+  subgraph analyst [Analyst]
+    Console[Analyst_Workspace]
+  end
+  subgraph api [API]
+    ConvAPI[api/conversations]
+    AnalystAPI[api/analyst]
+    DraftAPI[api/tickets/drafts]
+  end
   Conv[src/lib/conversation]
+  AnalystSvc[src/lib/analyst]
   Agent[lib/agent]
   TC[ticket-service]
   KB[knowledge-base]
   DB[(PostgreSQL)]
 
-  UI -->|SSE open then POST| API
-  UI -->|confirm/cancel draft| API
-  API --> Conv
-  API --> TC
+  ChatUI -->|SSE_then_POST| ConvAPI
+  ChatUI --> DraftAPI
+  Console -->|poll_ETag| AnalystAPI
+  ConvAPI --> Conv
+  AnalystAPI --> AnalystSvc
+  DraftAPI --> TC
   Conv --> Agent
   Conv --> DB
+  AnalystSvc --> Conv
+  AnalystSvc --> TC
   Agent --> TC
-  Agent --> Conv
   Agent --> KB
   TC --> DB
   KB --> DB
@@ -34,48 +47,48 @@ flowchart LR
 |-------|------------------|
 | `lib/agent/` | Turn runner, tools leitura + mutação, fixtures — **sem Prisma** |
 | `src/lib/conversation/` | Mensagens, transfer, limite 30, SSE `turn-bus` (globalThis) |
+| `src/lib/analyst/` | Inbox ETag, handoff assume/return/close, traces |
 | `src/lib/ticket-service/` | Chamados + drafts (único writer INC/REQ) |
 | `src/lib/domain/` | `dedup`, `rules` (incl. OUT_OF_SCOPE) |
 | `src/lib/knowledge-base/` | FTS KB (M2) |
+| `src/lib/dev/` | Reset seeds E2E (`analyst-transfer-seeds`) |
 
-## Fluxo SSE (02-07)
+## Fluxo SSE (funcionário)
 
 1. Cliente gera `turnId` e abre `GET /api/conversations/:id/stream?turnId=`.
 2. Aguarda evento `open` do `EventSource` (`use-chat-stream.ts`).
-3. `POST /api/conversations/active/messages` com `{ content, turnId }` → **202**.
+3. `POST /api/conversations/active/messages` com `{ content, turnId }` → **202** (423 com analista).
 4. Eventos: `ready`, `trace`, `token`, `message`, `done`, `agent_error`.
 5. Persistência assistant + `AgentTrace` no `done`.
 
-Rotas SSE: `runtime = nodejs`, `dynamic = force-dynamic`.
+## Polling analista (M5)
+
+- `GET /api/analyst/inbox` — header `ETag`; `If-None-Match` → **304**.
+- Thread: `GET .../messages`, `GET .../traces`; painel `GET /api/analyst/employees/:id/tickets`.
+- Intervalos: `ANALYST_POLL_*` (server props → client), ver [02-09](../02-especificacao/02-09-variaveis-ambiente.md).
 
 ## Auth (iron-session)
 
 - Middleware lê sessão em `nexo_session` (`src/middleware.ts`).
-- `POST /api/auth/login` monta `NextResponse.json` e chama `getIronSessionFromRequest(request, response)` para que o `Set-Cookie` acompanhe a mesma resposta HTTP.
+- Rate limit leve em `/api/*` (exc. auth/dev; off com `CHAOS_ENDPOINT_ENABLED`).
 
 ## Agent / OpenRouter
 
 - Dev/CI: `AGENT_EVAL_FIXTURES=true` (default sem `OPENROUTER_API_KEY`).
-- Produção manual: configurar `OPENROUTER_API_KEY` + `OPENROUTER_MODEL`; `LLM_MAX_CONCURRENCY` (default 2).
+- Produção: `OPENROUTER_API_KEY` + `OPENROUTER_MODEL`; `LLM_MAX_CONCURRENCY` (default 2).
+- Orchestrator próprio (não `@mastra/core` pinado) — ver [04-03 §3](../04-registro-mudanca/04-03-as-built.md).
 
-Orchestrator em `lib/agent` preparado para integração Mastra/OpenRouter; F3 usa fixture determinístico para evals estáveis.
+## Testes (M5)
 
-## Contrato de turno (M4)
-
-| Camada | Comportamento |
-|--------|----------------|
-| `runAgentTurn` | `content` + `trace` + `uiBlocks` (`draft_card`, `ticket_card`, …) |
-| `executeTurn` | SSE + persistência no `done` |
-| Transfer | Tool `transfer_to_analyst` → adapter Prisma em `src/lib/conversation` |
-| Tools | Leitura + `create_draft`, `update_ticket`, `reopen_ticket`, `cancel_draft`, `transfer_to_analyst` |
-| Dedup | `resolveDraftOperation` antes de draft (fixture EVAL-07/08) |
-
-Evals: **EVAL-01**–**10**; E2E `e2e-01` … `e2e-07`.
+| Camada | IDs |
+|--------|-----|
+| Unit/INT | 28 arquivos Vitest (SLA, RBAC, boundary, analyst poll/409, …) |
+| Evals | **EVAL-01**–**EVAL-15** |
+| E2E | `e2e-01` … `e2e-13` (Playwright em **127.0.0.1:3099**) |
 
 ## Playwright (E2E)
 
-- `playwright.config.ts`: `workers: 1`, `fullyParallel: false`, `baseURL` default `http://127.0.0.1:3099`.
-- `webServer`: `npx next dev -H 127.0.0.1 -p 3099`; carrega `.env`; força `AGENT_EVAL_FIXTURES=true` no processo de teste.
-- `reuseExistingServer` apenas com `PLAYWRIGHT_REUSE_SERVER=1` (opcional; alinhar `PLAYWRIGHT_BASE_URL`).
-- `e2e/auth.ts`: `loginAsAna` via `page.request.post('/api/auth/login')` + `goto('/atendimento')`.
-- **E2E-CHAOS:** mock `page.route` na rota confirm (503); `TICKET_CHAOS_RATE=0` no harness padrão.
+- `playwright.config.ts`: `workers: 1`, `CHAOS_ENDPOINT_ENABLED=true` no webServer.
+- `resetAnalystTransferSeeds` + `/api/dev/reset-analyst-seeds` antes dos specs analista.
+
+Lacunas vs protótipo: [GAPS.md](../desafio/GAPS.md).

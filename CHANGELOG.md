@@ -6,13 +6,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+### Documentação
+
+- `docs/desafio/README.md` e `GAPS.md` (baseline PRD vs `0.5.0-m5`).
+- Links corrigidos ao PDF/`.pen`; as-built e runbook [deploy-vps](docs/desenvolvimento/deploy-vps.md).
+
+## [0.5.0-m5] - 2026-11-24
+
+### Adicionado
+
+- **Console analista** (`/atendente/conversas`): layout 64+380+flex+340, polling ETag, filtros, takeover, painel de chamados, trace viewer.
+- **APIs `/api/analyst/*`:** inbox, assume, return-to-agent, close, mensagens, traces, tickets do funcionário; **POST** mensagem do analista (lacuna documentada em 02-07 / 04-03).
+- **Seeds** `CONV-ana-transfer` / `CONV-carla-transfer`; reset idempotente E2E (`/api/dev/reset-analyst-seeds`).
+- **Employee `with_analyst`:** conversa ativa, banner, POST mensagens **423** `CONVERSATION_WITH_ANALYST`.
+- **Evals EVAL-11**–**EVAL-15**; **INT-POLL-01**, **INT-409-01**, **INT-TICKET-03** (reopen Diego / INC-20150).
+- **E2E 08**–**13** (inbox, assume, return, close, panel, trace) + regressão 01–07.
+- **CI** `.github/workflows/ci.yml` (Postgres health → migrate → seed → Vitest); rate limit leve em `/api/*`; `.env.example` alinhado a 02-09.
+
 ### Corrigido
 
-- `messageCount`: conta apenas mensagens do usuário; respostas do assistente não incrementam o limite de 30.
-
-### Planejado
-
-- **M5 (F5):** console analista, polling, EVAL-11–15.
+- **`archiveAndCreateNew`:** encerra todas as conversas ativas do funcionário (evita colisão pós-transfer com seed na fila).
+- **Rate limit:** isento com `CHAOS_ENDPOINT_ENABLED` (suíte E2E) e rotas `/api/auth/*`, `/api/dev/*`.
+- **`sla.ts`:** parâmetro morto removido para build ESLint limpo.
 
 ## [0.4.0-m4] - 2026-11-24
 

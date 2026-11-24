@@ -8,6 +8,7 @@ import {
 import { executeTurn } from "./turn-runner";
 import {
   ConversationAwaitingAnalystError,
+  ConversationWithAnalystError,
   MESSAGE_LIMIT,
   SessionMessageLimitError,
 } from "./types";
@@ -53,6 +54,10 @@ export async function postUserMessage(
 
   if (conv.state === "awaiting_analyst") {
     throw new ConversationAwaitingAnalystError();
+  }
+
+  if (conv.state === "with_analyst") {
+    throw new ConversationWithAnalystError();
   }
 
   if (conv.messageCount >= MESSAGE_LIMIT) {

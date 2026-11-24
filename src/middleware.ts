@@ -1,7 +1,30 @@
 import { getSessionOptions, type SessionData } from "@/lib/auth/session";
+import { checkApiRateLimit } from "@/lib/api/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { getIronSession } from "iron-session";
 const publicPaths = ["/login", "/api/auth/login"];
+
+function apiRateLimit(request: NextRequest): NextResponse | null {
+  if (process.env.CHAOS_ENDPOINT_ENABLED === "true") {
+    return null;
+  }
+  const limit = Number.parseInt(process.env.PROXY_API_RATE_LIMIT_PER_MIN ?? "60", 10);
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return null;
+  }
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "local";
+  const { allowed, retryAfterSec } = checkApiRateLimit(ip, limit);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(retryAfterSec ?? 60) } },
+    );
+  }
+  return null;
+}
 
 function isPublicPath(pathname: string): boolean {
   return publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -16,6 +39,15 @@ export async function middleware(request: NextRequest) {
     pathname.includes(".")
   ) {
     return NextResponse.next();
+  }
+
+  if (
+    pathname.startsWith("/api/") &&
+    !pathname.startsWith("/api/auth/") &&
+    !pathname.startsWith("/api/dev/")
+  ) {
+    const limited = apiRateLimit(request);
+    if (limited) return limited;
   }
 
   const response = NextResponse.next();

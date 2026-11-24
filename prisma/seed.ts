@@ -90,6 +90,7 @@ async function main() {
   }
 
   const anaId = userByEmail.get("ana.souza@nexo.com.br")!;
+  const carlaId = userByEmail.get("carla.mendes@nexo.com.br")!;
   const diegoId = userByEmail.get("diego.ramos@nexo.com.br")!;
   const fabioId = userByEmail.get("fabio.nunes@nexo.com.br")!;
 
@@ -218,6 +219,106 @@ async function main() {
     });
   }
 
+  async function ensureTransferConversation(
+    seedKey: string,
+    userId: string,
+    messages: { role: "user" | "assistant" | "system"; content: string; confidence?: number }[],
+    userMessageCount: number,
+  ) {
+    const existing = await prisma.conversation.findFirst({
+      where: { userId, state: "awaiting_analyst", messages: { some: {} } },
+    });
+    if (existing) return existing;
+
+    const conv = await prisma.conversation.create({
+      data: {
+        userId,
+        state: "awaiting_analyst",
+        sessionSequence: 1,
+        messageCount: userMessageCount,
+        updatedAt: daysAgo(2),
+      },
+    });
+
+    for (const m of messages) {
+      const msg = await prisma.message.create({
+        data: {
+          conversationId: conv.id,
+          role: m.role,
+          content: m.content,
+        },
+      });
+      if (m.role === "assistant" && m.confidence != null) {
+        await prisma.agentTrace.create({
+          data: {
+            messageId: msg.id,
+            understanding: "Consulta de chamados abertos.",
+            actions: ["list_open_tickets"],
+            confidence: m.confidence,
+            rulesFired: ["SCOPE_IT"],
+            evidence: [{ type: "ticket", id: "INC-20311" }],
+            rawToolCalls: ["list_open_tickets"],
+          },
+        });
+      }
+    }
+
+    return conv;
+  }
+
+  await ensureTransferConversation(
+    "CONV-ana-transfer",
+    anaId,
+    [
+      {
+        role: "user",
+        content: "Qual o status dos meus chamados?",
+      },
+      {
+        role: "assistant",
+        content:
+          "Estes são seus chamados abertos:\n• INC-20311: Notebook lento após atualização do Windows (Aguardando analista) — **prazo vencido**",
+        confidence: 41,
+      },
+      {
+        role: "user",
+        content: "Preciso falar com um analista humano",
+      },
+      {
+        role: "assistant",
+        content:
+          "Vou transferir você para um analista humano. O assistente automático ficará pausado até a devolução.",
+      },
+      {
+        role: "system",
+        content:
+          "CONV-ana-transfer — Transferência para analista: INC-20311 vencido. O assistente automático foi pausado.",
+      },
+    ],
+    2,
+  );
+
+  await ensureTransferConversation(
+    "CONV-carla-transfer",
+    carlaId,
+    [
+      {
+        role: "user",
+        content: "Urgente: não consigo acessar o SAP, bloqueio de senha.",
+      },
+      {
+        role: "assistant",
+        content:
+          "Entendo a urgência de acesso ao SAP. Vou transferir para um analista humano.",
+      },
+      {
+        role: "system",
+        content: "Transferência para analista: acesso SAP urgente.",
+      },
+    ],
+    1,
+  );
+
   const existingConv = await prisma.conversation.findFirst({
     where: { userId: anaId, state: "with_agent" },
   });
@@ -227,9 +328,15 @@ async function main() {
       data: {
         userId: anaId,
         state: "with_agent",
-        sessionSequence: 1,
+        sessionSequence: 2,
         messageCount: 0,
+        updatedAt: now,
       },
+    });
+  } else {
+    await prisma.conversation.update({
+      where: { id: existingConv.id },
+      data: { updatedAt: now, sessionSequence: 2 },
     });
   }
 

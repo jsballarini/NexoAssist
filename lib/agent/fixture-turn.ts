@@ -232,6 +232,22 @@ async function matchPlan(
     };
   }
 
+  if (/inc-20311.*(vencid|analista)|vencid.*inc-20311|chamado vencido.*analista/.test(lower)) {
+    return {
+      tools: [
+        { name: "get_ticket", args: { publicId: "INC-20311" } },
+        {
+          name: "transfer_to_analyst",
+          args: { reason: "Chamado com SLA vencido — contexto para analista" },
+        },
+      ],
+      understanding: "Chamado vencido; transferência com contexto.",
+      reply:
+        "O INC-20311 está com SLA vencido. Vou transferir você para um analista com esse contexto.",
+      confidence: 86,
+    };
+  }
+
   if (/inc-20311|20311/.test(lower)) {
     return {
       tools: [{ name: "get_ticket", args: { publicId: "INC-20311" } }],
@@ -265,6 +281,92 @@ async function matchPlan(
           { type: "confidence", value: 81 },
         ];
       },
+    };
+  }
+
+  if (/todo (mundo|a empresa|a organização).*sem e-mail|e-mail.*(caiu|parou)|outlook.*empresa.*parou/.test(lower)) {
+    return {
+      tools: [
+        {
+          name: "create_draft",
+          args: {
+            operation: "create",
+            type: "INC",
+            category: "email",
+            title: "E-mail corporativo indisponível — impacto organizacional",
+            description: input,
+            priority: "critical",
+            affectedScope: "organization",
+          },
+        },
+      ],
+      understanding: "Incidente crítico de e-mail corporativo em larga escala.",
+      reply: (data) => {
+        const d = data[0] as DraftSummary;
+        return d
+          ? `Abri rascunho crítico ${d.draftId} para indisponibilidade de e-mail. Confirme para abrir o chamado.`
+          : "Preparando chamado crítico de e-mail.";
+      },
+      confidence: 78,
+      rulesOverride: ["SLA_CRITICAL", "SCOPE_IT"],
+    };
+  }
+
+  if (
+    /sap.*(bloquead|senha)|senha.*sap/.test(lower) &&
+    ctx.userName.toLowerCase().includes("diego")
+  ) {
+    const recent = await adapters.ticketClient.listRecentResolved(ctx.userId, 7);
+    const target = recent.find((t) => t.id === "INC-20150")?.id ?? "INC-20150";
+    return {
+      tools: [
+        { name: "list_recent_resolved", args: {} },
+        {
+          name: "reopen_ticket",
+          args: {
+            targetTicketId: target,
+            title: "Senha SAP bloqueada novamente",
+            description: input,
+          },
+        },
+      ],
+      understanding: "Reabertura de INC-20150 (resolvido há poucos dias).",
+      reply: (data) => {
+        const d = data[1] as DraftSummary;
+        return d
+          ? `Vou reabrir ${target} via rascunho ${d.draftId}. Confirme para aplicar.`
+          : `Reabertura proposta para ${target}.`;
+      },
+      confidence: 81,
+    };
+  }
+
+  if (/não sei se é (vpn|rede)|talvez (vpn|rede)|pode ser (vpn|rede)|não tenho certeza/.test(lower)) {
+    return {
+      tools: [],
+      understanding: "Pedido ambíguo — confiança baixa.",
+      reply:
+        "Não tenho certeza se é VPN ou outro tipo de problema. Posso transferir para um analista ou você pode descrever melhor os sintomas.",
+      confidence: 42,
+      uiBlocks: () => [
+        { type: "confidence", value: 42 },
+        { type: "quick_replies", options: ["Falar com analista", "É VPN", "É hardware"] },
+      ],
+    };
+  }
+
+  if (
+    /cancel(ar|e) (o )?rascunho|não quero (confirmar|esse) rascunho|cancelar o rascunho d-/i.test(
+      lower,
+    )
+  ) {
+    const draftMatch = input.match(/d-\d+/i);
+    const draftId = draftMatch?.[0].toUpperCase() ?? "D-001";
+    return {
+      tools: [{ name: "cancel_draft", args: { draftId } }],
+      understanding: "Usuário pede cancelamento de rascunho.",
+      reply: "Rascunho cancelado conforme solicitado.",
+      confidence: 85,
     };
   }
 

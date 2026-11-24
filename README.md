@@ -1,14 +1,15 @@
 # Nexo Assist
 
-Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseline de produto: [Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf).
+Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseline de produto: [docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf). Lacunas documentadas: [docs/desafio/GAPS.md](docs/desafio/GAPS.md).
 
-**Versão da aplicação:** `0.4.0-m4` (marco **M4** — drafts, transfer, limite 30) — ver [CHANGELOG.md](CHANGELOG.md).
+**Versão da aplicação:** `0.5.0-m5` (marco **M5** — console analista, evals 11–15, CI) — ver [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentação
 
 | Onde | Conteúdo |
 |------|----------|
-| [docs/README.md](docs/README.md) | Especificação (pacote docs **0.2.8**) |
+| [docs/README.md](docs/README.md) | Especificação (pacote docs **0.3.0**) |
+| [docs/desafio/](docs/desafio/README.md) | PRD, protótipo, GAPS |
 | [docs/desenvolvimento/](docs/desenvolvimento/README.md) | Status M1–M5, arquitetura |
 | [docs/execucao/](docs/execucao/README.md) | Guias F1–F5 |
 
@@ -22,7 +23,7 @@ npx prisma db seed
 npm run dev
 ```
 
-Login: [http://localhost:3000/login](http://localhost:3000/login) — `ana.souza@nexo.com.br` (qualquer senha) → `/atendimento`.
+Login: [http://localhost:3000/login](http://localhost:3000/login) — funcionário `ana.souza@nexo.com.br` → `/atendimento`; analista `rafael.lima@nexo.com.br` → `/atendente/conversas` (qualquer senha no seed).
 
 ## Stack
 
@@ -37,7 +38,7 @@ npm run prepare:e2e   # 1ª vez: baixa Chromium (senão E2E falha)
 npm run test:e2e      # sobe `next dev` em 127.0.0.1:3099 (não reutiliza :3000)
 npm run test          # Vitest + Playwright
 npm run test:unit     # Vitest completo
-npm run test:evals    # EVAL-01..10
+npm run test:evals    # EVAL-01..15
 npm run build
 ```
 
@@ -68,17 +69,18 @@ Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example
 2. Aguardar conexão (`open`).
 3. `POST /api/conversations/active/messages` com o mesmo `turnId`.
 
-## APIs (M3–M4)
+## APIs principais
 
 | Rota | Descrição |
 |------|-----------|
 | `GET /api/conversations/active` | Sessão ativa (`state`, contador /30) |
 | `POST /api/conversations/active/messages` | Enviar mensagem (202; 429 limite; 423 analista) |
-| `GET /api/conversations/:id/stream` | SSE do turno (`ready`, `token`, `message`, `done`, `agent_error`) |
-| `GET /api/conversations/:id/messages` | Histórico + trace |
+| `GET /api/conversations/:id/stream` | SSE do turno |
 | `POST /api/conversations/active/new-session` | Nova sessão |
-| `POST /api/tickets/drafts/:draftId/confirm` | Confirma rascunho → ticket |
-| `POST /api/tickets/drafts/:draftId/cancel` | Cancela rascunho |
+| `POST /api/tickets/drafts/:draftId/confirm` \| `cancel` | Rascunho → ticket |
+| `GET /api/analyst/inbox` | Fila analista (ETag / 304) |
+| `POST /api/analyst/conversations/:id/assume` \| `return-to-agent` \| `close` | Handoff |
+| `POST /api/analyst/conversations/:id/messages` | Mensagem do analista |
 
 ### Fluxo draft (M4)
 
@@ -95,15 +97,28 @@ Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example
 
 | Marco | Estado |
 |-------|--------|
-| M1–M4 | Concluídos |
-| M5 | Pendente — [status](docs/desenvolvimento/status-implementacao.md) |
+| M1–M5 | Concluídos — [status](docs/desenvolvimento/status-implementacao.md) |
+
+## Decisões e trade-offs
+
+| Tema | Decisão | Motivo |
+|------|---------|--------|
+| Agent runtime | Orchestrator em `lib/agent/` + fixture CI | Evals/E2E determinísticos; Mastra opcional futuro |
+| LLM default | `AGENT_EVAL_FIXTURES=true` sem API key | CI e onboarding sem custo |
+| E2E | Porta **3099** dedicada | Evita colisão com `next dev` :3000 |
+| Mutação tickets | Sempre via draft confirmado | Único writer `ticket-service`; dedup Anexo A |
+| Handoff | Employee bloqueado em `with_analyst` (423) | Evita mensagens paralelas agent × analista |
+| Rate limit | In-memory por IP em `/api/*` | Doc PRD; produção atrás de proxy real |
+| UI | Tailwind + componentes próprios | Inspiração TailAdmin, não fork do kit |
+| Deploy | Compose + runbook VPS; CI deploy = hook SSH | [deploy-vps.md](docs/desenvolvimento/deploy-vps.md) |
 
 ## Estrutura
 
 ```
-lib/agent/           # Agent (sem Prisma)
+lib/agent/              # Agent (sem Prisma)
+src/lib/analyst/        # Console analista
 src/lib/conversation/
 src/lib/ticket-service/
-tests/evals/         # EVAL-01..10
-e2e/                 # E2E-LOGIN..CHAOS (7 specs)
+tests/evals/            # EVAL-01..15
+e2e/                    # 13 specs Playwright
 ```
