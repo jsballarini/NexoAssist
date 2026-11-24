@@ -15,7 +15,7 @@ flowchart LR
   KB[knowledge-base]
   DB[(PostgreSQL)]
 
-  UI -->|SSE turnId then POST| API
+  UI -->|SSE open then POST| API
   API --> Conv
   Conv --> Agent
   Conv --> DB
@@ -37,11 +37,17 @@ flowchart LR
 ## Fluxo SSE (02-07)
 
 1. Cliente gera `turnId` e abre `GET /api/conversations/:id/stream?turnId=`.
-2. `POST /api/conversations/active/messages` com `{ content, turnId }` → **202**.
-3. Eventos: `trace`, `token`, `message`, `done`.
-4. Persistência assistant + `AgentTrace` no `done`.
+2. Aguarda evento `open` do `EventSource` (`use-chat-stream.ts`).
+3. `POST /api/conversations/active/messages` com `{ content, turnId }` → **202**.
+4. Eventos: `trace`, `token`, `message`, `done`.
+5. Persistência assistant + `AgentTrace` no `done`.
 
 Rotas SSE: `runtime = nodejs`, `dynamic = force-dynamic`.
+
+## Auth (iron-session)
+
+- Middleware lê sessão em `nexo_session` (`src/middleware.ts`).
+- `POST /api/auth/login` monta `NextResponse.json` e chama `getIronSessionFromRequest(request, response)` para que o `Set-Cookie` acompanhe a mesma resposta HTTP.
 
 ## Agent / OpenRouter
 
@@ -66,5 +72,8 @@ Referência evals: **EVAL-06**–**10** em [03-02](../03-processos-validacao/03-
 
 ## Playwright (E2E)
 
-- Config: `workers: 1`, `fullyParallel: false` — reduz *cold start* do `next dev`.
-- F4: isolar **E2E-CHAOS** (gate M4) para não competir com LOGIN/STATUS/KB na mesma execução paralela.
+- `playwright.config.ts`: `workers: 1`, `fullyParallel: false`, `baseURL` default `http://127.0.0.1:3099`.
+- `webServer`: `npx next dev -H 127.0.0.1 -p 3099`; carrega `.env`; força `AGENT_EVAL_FIXTURES=true` no processo de teste.
+- `reuseExistingServer` apenas com `PLAYWRIGHT_REUSE_SERVER=1` (opcional; alinhar `PLAYWRIGHT_BASE_URL`).
+- `e2e/auth.ts`: `loginAsAna` via `page.request.post('/api/auth/login')` + `goto('/atendimento')`.
+- F4: isolar **E2E-CHAOS** (gate M4) para não competir com LOGIN/STATUS/KB na mesma execução.

@@ -10,6 +10,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 - **M4 (F4):** drafts, transferência, limite 30 mensagens.
 
+## [0.3.1] - 2026-11-24
+
+### Corrigido
+
+- `POST /api/auth/login`: cookie iron-session gravado na mesma `NextResponse` (`getIronSessionFromRequest`).
+- Chat: cliente aguarda evento `open` do `EventSource` antes do `POST` do turno (evita perda de eventos SSE).
+- Playwright: servidor E2E dedicado em `127.0.0.1:3099`, carrega `.env`, não reutiliza `next dev` na porta 3000 por padrão.
+- `next.config`: `allowedDevOrigins` para requisições de dev a partir de `127.0.0.1`.
+- Helper E2E `loginAsAna`: autenticação via API com mensagem de falha explícita.
+
 ## [0.3.0-m3] - 2026-11-24
 
 ### Adicionado

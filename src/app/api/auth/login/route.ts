@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
-import { getSession, type SessionUser } from "@/lib/auth/session";
-import { NextResponse } from "next/server";
+import { getIronSessionFromRequest, type SessionUser } from "@/lib/auth/session";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -8,7 +8,7 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let body: unknown;
   try {
     body = await request.json();
@@ -35,16 +35,17 @@ export async function POST(request: Request) {
     role: user.role,
   };
 
-  const session = await getSession();
-  session.user = sessionUser;
-  await session.save();
-
-  return NextResponse.json({
+  const payload = {
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
     },
-  });
+  };
+  const response = NextResponse.json(payload);
+  const session = await getIronSessionFromRequest(request, response);
+  session.user = sessionUser;
+  await session.save();
+  return response;
 }

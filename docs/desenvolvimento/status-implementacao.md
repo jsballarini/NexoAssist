@@ -1,7 +1,7 @@
 # Status da implementação
 
 **Atualizado:** 2026-11-24  
-**Versão app:** `0.3.0-m3`  
+**Versão app:** `0.3.1`  
 **Registro formal as-built:** [04-03-as-built.md](../04-registro-mudanca/04-03-as-built.md) (parcial M3).
 
 ## Marcos M1–M5
@@ -23,6 +23,7 @@
 | `lib/agent` sem Prisma | Feito |
 | `npm run test` + `test:evals` | Feito |
 | `npm run build` | Feito |
+| E2E estável (LOGIN, STATUS, KB) | Feito (harness :3099, 0.3.1) |
 
 ## Preparação F4 (a partir de M3)
 
@@ -32,11 +33,11 @@
 | Tools mutação | Delegar a `ticket-service` stubs → impl F4 |
 | UI | Cards draft (Confirmar/Cancelar), bloqueio 30 msgs |
 | Testes | EVAL-06–10, E2E-OPEN/TRANSFER/LIMIT/CHAOS |
-| E2E | Manter `workers: 1`; `webServer.timeout` generoso |
+| E2E | Manter `workers: 1`; porta dedicada 3099 ou gate isolado para CHAOS |
 
-## Nota E2E (M3)
+## Estabilidade E2E (0.3.1)
 
-Flakiness no login pode ocorrer no *cold start* do Playwright. Rodar `npm run dev` antes e `reuseExistingServer` em dev, ou `CI=1` com retries.
+Causas mitigadas: reutilização acidental do `next dev` na **3000**, cookie iron-session desacoplado da resposta do login e corrida SSE (POST antes da inscrição no `turn-bus`). Harness padrão: servidor próprio em **127.0.0.1:3099**, seed obrigatório, helper `e2e/auth.ts` via API.
 
 ## Próximo passo
 

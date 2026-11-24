@@ -74,10 +74,12 @@ Só use **`migrate dev`** quando houve mudança no schema. Se `migrate status` j
 | Nova migration (schema alterado) | `npx prisma migrate dev --name ...` |
 | Seed | `npx prisma db seed` |
 | Dev server | `npm run dev` → http://localhost:3000 |
+| Servidor E2E (Playwright) | `npm run test:e2e` sobe `next dev` em http://127.0.0.1:3099 |
 | Build | `npm run build` |
 | Testes completos | `npm run test` (Vitest + Playwright) |
 | Só unit/int | `npm run test:unit` |
 | Só E2E | `npm run test:e2e` |
+| Chromium (1ª vez E2E) | `npm run prepare:e2e` |
 | App + DB Docker | `docker compose up --build` (definir `SESSION_SECRET` no host) |
 
 ### Troubleshooting: Prisma quer dropar `search_vector`
@@ -98,17 +100,49 @@ Cancelar com **Ctrl+C** ou **N**. O comando é interativo; prefira `migrate depl
 - Elenco e chamados futuros: [personas-seed.md](../anexos/personas-seed.md).
 - **M2:** elenco completo [personas-seed.md](../anexos/personas-seed.md), tickets INC/REQ e 8 artigos KB.
 
-## Playwright (primeira vez)
+## Playwright (E2E)
+
+### Primeira vez
 
 ```bash
-npx playwright install chromium
-npm run test
+npm run prepare:e2e    # equivalente a: playwright install chromium
 ```
 
-Pré-requisito: banco migrado e seed aplicado (o `webServer` não roda migrate automaticamente).
+### Fluxo recomendado
 
-### Estabilidade E2E (M3+)
+```bash
+docker compose up -d db
+npx prisma migrate deploy
+npx prisma db seed
+npm run test:e2e      # ou npm run test (Vitest + Playwright)
+```
 
-- Suíte configurada com **`workers: 1`** e **`webServer.timeout` 120s** para tolerar compilação inicial do Next.js.
-- Em desenvolvimento local: deixe `npm run dev` rodando e execute `npm run test:e2e` (reutiliza servidor quando `CI` não está definido).
-- Se o login falhar na 1ª tentativa, o retry do Playwright cobre *cold start*; na F4, manter o mesmo padrão para **E2E-CHAOS**.
+O `webServer` **não** aplica migrations nem seed automaticamente.
+
+### Estabilidade E2E (M3 / 0.3.1)
+
+| Config | Valor |
+|--------|--------|
+| Host / porta | `127.0.0.1:3099` (não compete com `npm run dev` na 3000) |
+| `workers` | `1` |
+| `webServer.timeout` | `180s` (compilação inicial do Next) |
+| Env do servidor de teste | `.env` carregado + `AGENT_EVAL_FIXTURES=true`, `TICKET_CHAOS_RATE=0` |
+
+Variáveis opcionais: `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_REUSE_SERVER=1` (só reutilizar servidor já atualizado; alinhar `PLAYWRIGHT_BASE_URL` à porta real).
+
+### Troubleshooting E2E
+
+**Login fica em `/login` ou API 401/500**
+
+- Causa comum: Playwright reutilizar um `next dev` antigo na 3000. O padrão atual **não** reutiliza; deixe o E2E subir o servidor em 3099.
+- Confirme seed: `npx prisma db seed` (usuário `ana.souza@nexo.com.br`).
+
+**Assistente não responde no E2E-STATUS (mensagem enviada, sem INC-20311)**
+
+- Corrida SSE mitigada no cliente (`open` antes do POST). Se falhar, veja trace em `test-results/` e logs do `webServer` na 3099.
+
+**`Timed out waiting for webServer` com porta 3000 em uso**
+
+- Não defina `CI=1` esperando 3000 se outro processo já ocupa a porta. Use o fluxo padrão (`test:e2e` → 3099) ou `PLAYWRIGHT_PORT` explícito.
+
+Na **F4**, manter `workers: 1` e considerar gate isolado para **E2E-CHAOS**.

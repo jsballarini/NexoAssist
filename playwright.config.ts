@@ -1,4 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+import path from "path";
+
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+
+const e2eHost = "127.0.0.1";
+const e2ePort = process.env.PLAYWRIGHT_PORT ?? "3099";
+const e2eBaseURL =
+  process.env.PLAYWRIGHT_BASE_URL ?? `http://${e2eHost}:${e2ePort}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -7,19 +16,20 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
-  timeout: 60_000,
+  timeout: 120_000,
   reporter: "list",
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
+    baseURL: e2eBaseURL,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:3000",
+    command: `npx next dev -H ${e2eHost} -p ${e2ePort}`,
+    url: e2eBaseURL,
     timeout: 180_000,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     env: {
+      ...process.env,
       DATABASE_URL:
         process.env.DATABASE_URL ??
         "postgresql://nexo:nexo@localhost:5432/nexo",

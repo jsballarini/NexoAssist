@@ -1,6 +1,6 @@
 # Documentação do projeto Nexo Assist
 
-**Versão do pacote de documentação:** 0.2.6  
+**Versão do pacote de documentação:** 0.2.7  
 **Última atualização:** 2026-11-24
 
 ## Propósito

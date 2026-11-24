@@ -108,6 +108,23 @@ export function useChatStream(conversationId: string | null) {
 
       attachListeners();
 
+      await new Promise<void>((resolve, reject) => {
+        const onOpen = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error("Não foi possível conectar ao stream do assistente."));
+        };
+        const cleanup = () => {
+          es.removeEventListener("open", onOpen);
+          es.removeEventListener("error", onError);
+        };
+        es.addEventListener("open", onOpen);
+        es.addEventListener("error", onError);
+      });
+
       const res = await fetch("/api/conversations/active/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
