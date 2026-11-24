@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  employee
+  analyst
+}
+
+enum ConversationState {
+  with_agent
+  awaiting_analyst
+  with_analyst
+  closed
+}
+
+enum MessageRole {
+  user
+  assistant
+  analyst
+  system
+}
+
+enum TicketType {
+  INC
+  REQ
+}
+
+enum TicketCategory {
+  acesso
+  rede_vpn
+  hardware
+  software
+  email
+  outros
+}
+
+enum TicketPriority {
+  critical
+  high
+  medium
+  low
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  waiting_analyst
+  approved
+  resolved
+  in_service
+}
+
+enum AffectedScope {
+  only_me
+  team
+  organization
+}
+
+enum DraftOperation {
+  create
+  update
+  reopen
+}
+
+enum TicketDraftStatus {
+  pending
+  confirmed
+  cancelled
+  expired
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  name       String
+  role       UserRole
+  department String
+
+  conversations         Conversation[] @relation("ConversationOwner")
+  assignedConversations Conversation[] @relation("AssignedAnalyst")
+  tickets               Ticket[]
+  ticketDrafts          TicketDraft[]
+}
+
+model Conversation {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation("ConversationOwner", fields: [userId], references: [id], onDelete: Cascade)
+  state             ConversationState @default(with_agent)
+  sessionSequence   Int               @default(1)
+  messageCount      Int               @default(0)
+  assignedAnalystId String?
+  assignedAnalyst   User?             @relation("AssignedAnalyst", fields: [assignedAnalystId], references: [id])
+  updatedAt         DateTime          @updatedAt
+  messages          Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String       @db.Text
+  uiBlocks       Json?
+  createdAt      DateTime     @default(now())
+  agentTrace     AgentTrace?
+}
+
+model AgentTrace {
+  id            String  @id @default(uuid())
+  messageId     String  @unique
+  message       Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  understanding String  @db.Text
+  actions       Json
+  confidence    Int
+  rulesFired    Json
+  evidence      Json
+  rawToolCalls  Json?
+}
+
+model Ticket {
+  publicId      String          @id
+  requesterId   String
+  requester     User            @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  title         String
+  description   String          @db.Text
+  type          TicketType
+  category      TicketCategory
+  priority      TicketPriority
+  status        TicketStatus
+  affectedScope AffectedScope
+  openedAt      DateTime
+  dueAt         DateTime
+  lastUpdatedAt DateTime
+  resolvedAt    DateTime?
+
+  @@index([requesterId])
+  @@index([status])
+}
+
+model TicketDraft {
+  publicId    String            @id
+  requesterId String
+  requester   User              @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  operation   DraftOperation
+  payload     Json
+  status      TicketDraftStatus @default(pending)
+  expiresAt   DateTime
+
+  @@index([requesterId])
+}
+
+model KnowledgeArticle {
+  id    String @id @default(uuid())
+  slug  String @unique
+  title String
+  body  String @db.Text
+
+  @@map("KnowledgeArticle")
+}

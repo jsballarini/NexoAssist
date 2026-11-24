@@ -1,0 +1,38 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/playwright-report
+/test-results
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.env
+.env.local
+.env.*.local
+
+# debug
+npm-debug.log*
+
+# prisma
+prisma/*.db
+
+# temp
+_tailadmin_tmp
+
+# typescript
+next-env.d.ts
+docs/0*
+docs/anexos
+docs/execucao
+.cursor

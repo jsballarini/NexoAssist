@@ -1,0 +1,44 @@
+import { prisma } from "@/lib/db";
+import { postUserMessage } from "@/lib/conversation";
+import { describe, expect, it } from "vitest";
+
+describe("INT-CONV-01", () => {
+  it("mensagens e traces persistem após novo client", async () => {
+    const ana = await prisma.user.findUnique({
+      where: { email: "ana.souza@nexo.com.br" },
+    });
+    expect(ana).toBeTruthy();
+
+    const { conversationId, turnId } = await postUserMessage(
+      ana!.id,
+      ana!.name,
+      ana!.department,
+      "Como está o INC-20311?",
+      undefined,
+    );
+
+    await new Promise((r) => setTimeout(r, 800));
+
+    const msgs = await prisma.message.findMany({
+      where: { conversationId },
+      include: { agentTrace: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    expect(msgs.length).toBeGreaterThanOrEqual(2);
+    const assistant = msgs.find((m) => m.role === "assistant");
+    expect(assistant?.agentTrace).toBeTruthy();
+    expect(assistant?.agentTrace?.confidence).toBeGreaterThanOrEqual(0);
+
+    const { PrismaClient } = await import("@prisma/client");
+    const fresh = new PrismaClient();
+    const again = await fresh.message.findMany({
+      where: { conversationId },
+      include: { agentTrace: true },
+    });
+    await fresh.$disconnect();
+
+    expect(again.some((m) => m.agentTrace)).toBe(true);
+    expect(turnId).toBeTruthy();
+  });
+});

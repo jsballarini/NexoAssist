@@ -1,0 +1,1 @@
+export { searchArticles, type KbSearchResult } from "./search";
