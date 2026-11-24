@@ -2,13 +2,13 @@
 
 Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseline de produto: [Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf).
 
-**Versão da aplicação:** `0.3.1` (marco **M3** + estabilidade E2E) — ver [CHANGELOG.md](CHANGELOG.md).
+**Versão da aplicação:** `0.4.0-m4` (marco **M4** — drafts, transfer, limite 30) — ver [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentação
 
 | Onde | Conteúdo |
 |------|----------|
-| [docs/README.md](docs/README.md) | Especificação (pacote docs **0.2.7**) |
+| [docs/README.md](docs/README.md) | Especificação (pacote docs **0.2.8**) |
 | [docs/desenvolvimento/](docs/desenvolvimento/README.md) | Status M1–M5, arquitetura |
 | [docs/execucao/](docs/execucao/README.md) | Guias F1–F5 |
 
@@ -37,7 +37,7 @@ npm run prepare:e2e   # 1ª vez: baixa Chromium (senão E2E falha)
 npm run test:e2e      # sobe `next dev` em 127.0.0.1:3099 (não reutiliza :3000)
 npm run test          # Vitest + Playwright
 npm run test:unit     # Vitest completo
-npm run test:evals    # EVAL-01..05
+npm run test:evals    # EVAL-01..10
 npm run build
 ```
 
@@ -68,22 +68,35 @@ Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example
 2. Aguardar conexão (`open`).
 3. `POST /api/conversations/active/messages` com o mesmo `turnId`.
 
-## APIs (M3)
+## APIs (M3–M4)
 
 | Rota | Descrição |
 |------|-----------|
-| `GET /api/conversations/active` | Sessão ativa + contador |
-| `POST /api/conversations/active/messages` | Enviar mensagem (202) |
-| `GET /api/conversations/:id/stream` | SSE do turno |
+| `GET /api/conversations/active` | Sessão ativa (`state`, contador /30) |
+| `POST /api/conversations/active/messages` | Enviar mensagem (202; 429 limite; 423 analista) |
+| `GET /api/conversations/:id/stream` | SSE do turno (`ready`, `token`, `message`, `done`, `agent_error`) |
 | `GET /api/conversations/:id/messages` | Histórico + trace |
 | `POST /api/conversations/active/new-session` | Nova sessão |
+| `POST /api/tickets/drafts/:draftId/confirm` | Confirma rascunho → ticket |
+| `POST /api/tickets/drafts/:draftId/cancel` | Cancela rascunho |
+
+### Fluxo draft (M4)
+
+1. Agent propõe rascunho no chat (`draft_card` + SLA previsto).
+2. **Confirmar** / **Cancelar** chamam as rotas acima.
+3. `TICKET_CHAOS_RATE=1` força 503 no ticket-service (demo `E2E-CHAOS`).
+
+### Transfer e limite
+
+- `transfer_to_analyst` → `state=awaiting_analyst`, composer desabilitado.
+- 30 mensagens **do funcionário** por sessão (respostas do assistente não contam) → modal + **Nova sessão**.
 
 ## Marco atual
 
 | Marco | Estado |
 |-------|--------|
-| M1–M3 | Concluídos |
-| M4–M5 | Pendente — [status](docs/desenvolvimento/status-implementacao.md) |
+| M1–M4 | Concluídos |
+| M5 | Pendente — [status](docs/desenvolvimento/status-implementacao.md) |
 
 ## Estrutura
 
@@ -91,6 +104,6 @@ Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example
 lib/agent/           # Agent (sem Prisma)
 src/lib/conversation/
 src/lib/ticket-service/
-tests/evals/         # EVAL-01..05
-e2e/                 # E2E-LOGIN, E2E-STATUS, E2E-KB
+tests/evals/         # EVAL-01..10
+e2e/                 # E2E-LOGIN..CHAOS (7 specs)
 ```

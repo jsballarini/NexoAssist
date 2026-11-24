@@ -6,9 +6,30 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+### Corrigido
+
+- `messageCount`: conta apenas mensagens do usuário; respostas do assistente não incrementam o limite de 30.
+
 ### Planejado
 
-- **M4 (F4):** drafts, transferência, limite 30 mensagens.
+- **M5 (F5):** console analista, polling, EVAL-11–15.
+
+## [0.4.0-m4] - 2026-11-24
+
+### Adicionado
+
+- **ticket-service:** `createDraft` / `confirmDraft` / `cancelDraft`, IDs `D-*` / `INC-*` / `REQ-*`, dedup (`src/lib/domain/dedup.ts`).
+- **API:** `POST /api/tickets/drafts/:draftId/confirm` e `cancel`; 429 limite 30 msgs; 423 `awaiting_analyst`.
+- **Agent:** tools de mutação + `transfer_to_analyst`; regra `OUT_OF_SCOPE`; fixtures **EVAL-06**–**EVAL-10**.
+- **Conversa:** transferência analista, `draft_card` em uiBlocks, mensagens `system`.
+- **UI:** DraftCard, banner aguardando analista, modal limite 30, toast 503.
+- **Testes:** UNIT-DEDUP/SESSION/RULES, INT-TICKET-01/02, E2E-OPEN/TRANSFER/LIMIT/CHAOS.
+- Migration `m4_ticket_dedup_index` em `Ticket`.
+
+### Corrigido
+
+- `turn-bus` e contador LLM em `globalThis` (SSE confiável no `next dev`).
+- Cliente SSE: sync `conversationId` ativo, fallback `loadHistory`, evento `ready` no stream.
 
 ## [0.3.1] - 2026-11-24
 

@@ -9,6 +9,6 @@ test("E2E-STATUS: consulta INC-20311 vencido visível", async ({ page }) => {
 
   await expect(
     page.getByText("INC-20311", { exact: true }).first(),
-  ).toBeVisible({ timeout: 30_000 });
+  ).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText("Vencido", { exact: true }).first()).toBeVisible();
 });

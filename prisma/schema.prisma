@@ -94,6 +94,7 @@ model Conversation {
   user              User              @relation("ConversationOwner", fields: [userId], references: [id], onDelete: Cascade)
   state             ConversationState @default(with_agent)
   sessionSequence   Int               @default(1)
+  /// Mensagens enviadas pelo funcionário nesta sessão (respostas do assistente não contam).
   messageCount      Int               @default(0)
   assignedAnalystId String?
   assignedAnalyst   User?             @relation("AssignedAnalyst", fields: [assignedAnalystId], references: [id])
@@ -142,6 +143,7 @@ model Ticket {
 
   @@index([requesterId])
   @@index([status])
+  @@index([requesterId, status, resolvedAt])
 }
 
 model TicketDraft {

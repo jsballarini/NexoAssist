@@ -1,6 +1,6 @@
 import { runAgentTurn } from "../../lib/agent";
-import { createTicketServiceClient } from "@/lib/ticket-service";
-import { searchArticles } from "@/lib/knowledge-base/search";
+import { createAgentAdapters } from "@/lib/conversation/adapters-factory";
+import { getOrCreateActive } from "@/lib/conversation/service";
 
 export async function findAnaUserId(): Promise<string> {
   const { prisma } = await import("@/lib/db");
@@ -13,20 +13,21 @@ export async function findAnaUserId(): Promise<string> {
 
 export async function runEvalTurn(content: string, userId?: string) {
   const uid = userId ?? (await findAnaUserId());
-  const ticketClient = createTicketServiceClient();
+  const { prisma } = await import("@/lib/db");
+  const conv = await getOrCreateActive(uid);
+  await prisma.conversation.update({
+    where: { id: conv.id },
+    data: { messageCount: 0, state: "with_agent" },
+  });
+  const adapters = createAgentAdapters(uid);
   return runAgentTurn(
     content,
-    { userId: uid, userName: "Ana Souza", department: "Financeiro" },
     {
-      ticketClient,
-      kbSearch: async (q) => {
-        const hits = await searchArticles(q, 5);
-        return hits.map((h) => ({
-          slug: h.slug,
-          title: h.title,
-          excerpt: h.excerpt,
-        }));
-      },
+      userId: uid,
+      userName: "Ana Souza",
+      department: "Financeiro",
+      conversationId: conv.id,
     },
+    adapters,
   );
 }

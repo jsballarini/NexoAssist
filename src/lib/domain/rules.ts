@@ -1,9 +1,17 @@
 export type RuleId =
   | "SCOPE_IT"
+  | "OUT_OF_SCOPE"
   | "KB_PARTIAL_MATCH"
   | "TICKET_SLA_BREACH"
   | "GREETING"
   | "TICKET_LOOKUP";
+
+const OUT_OF_SCOPE_RE =
+  /\b(vale[-\s]?refeição|vale refeição|rh\b|benefício|beneficios|folha de pagamento|salário|ferias|férias|plano de saúde)\b/i;
+
+export function detectOutOfScope(input: string): boolean {
+  return OUT_OF_SCOPE_RE.test(input);
+}
 
 export function getConfidenceTransferOffer(): number {
   const raw = process.env.AGENT_CONFIDENCE_TRANSFER_OFFER ?? "50";
@@ -23,6 +31,9 @@ export function normalizeConfidence(value: number): number {
 }
 
 export function inferRulesFromContent(input: string, toolsUsed: string[]): RuleId[] {
+  if (detectOutOfScope(input)) {
+    return ["OUT_OF_SCOPE"];
+  }
   const rules: RuleId[] = ["SCOPE_IT"];
   const lower = input.toLowerCase();
 

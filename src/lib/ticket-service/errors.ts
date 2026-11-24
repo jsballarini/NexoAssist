@@ -31,3 +31,24 @@ export class TicketNotImplementedError extends Error {
     this.name = "TicketNotImplementedError";
   }
 }
+
+export class DraftNotFoundError extends Error {
+  constructor() {
+    super("Rascunho não encontrado");
+    this.name = "DraftNotFoundError";
+  }
+}
+
+export class DraftExpiredError extends Error {
+  constructor() {
+    super("Rascunho expirado");
+    this.name = "DraftExpiredError";
+  }
+}
+
+export class DraftInvalidError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DraftInvalidError";
+  }
+}

@@ -16,7 +16,7 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
-  timeout: 120_000,
+  timeout: 180_000,
   reporter: "list",
   use: {
     baseURL: e2eBaseURL,

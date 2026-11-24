@@ -119,7 +119,7 @@ npm run test:e2e      # ou npm run test (Vitest + Playwright)
 
 O `webServer` **não** aplica migrations nem seed automaticamente.
 
-### Estabilidade E2E (M3 / 0.3.1)
+### Estabilidade E2E (M4 / 0.4.0-m4)
 
 | Config | Valor |
 |--------|--------|
@@ -145,4 +145,4 @@ Variáveis opcionais: `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_REUS
 
 - Não defina `CI=1` esperando 3000 se outro processo já ocupa a porta. Use o fluxo padrão (`test:e2e` → 3099) ou `PLAYWRIGHT_PORT` explícito.
 
-Na **F4**, manter `workers: 1` e considerar gate isolado para **E2E-CHAOS**.
+Suite **7 specs** (`e2e-01` … `e2e-07`); manter `workers: 1`. **E2E-CHAOS** usa mock HTTP — não exige `TICKET_CHAOS_RATE=1` no `webServer`.

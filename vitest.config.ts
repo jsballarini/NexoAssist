@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    fileParallelism: false,
     env: {
       TICKET_CHAOS_RATE: "0",
       TEST_USE_WALL_CLOCK: "false",

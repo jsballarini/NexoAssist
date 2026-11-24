@@ -5,9 +5,20 @@ type Subscriber = {
   close: () => void;
 };
 
-const subs = new Map<string, Set<Subscriber>>();
+/** Singleton no global — Next dev pode duplicar o módulo entre rotas/API. */
+const globalForTurnBus = globalThis as unknown as {
+  __nexoTurnSubs?: Map<string, Set<Subscriber>>;
+};
+
+function getSubs() {
+  if (!globalForTurnBus.__nexoTurnSubs) {
+    globalForTurnBus.__nexoTurnSubs = new Map();
+  }
+  return globalForTurnBus.__nexoTurnSubs;
+}
 
 export function subscribeTurn(turnId: string, sub: Subscriber): () => void {
+  const subs = getSubs();
   let set = subs.get(turnId);
   if (!set) {
     set = new Set();
@@ -21,7 +32,7 @@ export function subscribeTurn(turnId: string, sub: Subscriber): () => void {
 }
 
 export function publishTurnEvent(turnId: string, event: SseEvent) {
-  const set = subs.get(turnId);
+  const set = getSubs().get(turnId);
   if (!set) return;
   for (const s of set) {
     s.send(event);
@@ -29,6 +40,7 @@ export function publishTurnEvent(turnId: string, event: SseEvent) {
 }
 
 export function closeTurn(turnId: string) {
+  const subs = getSubs();
   const set = subs.get(turnId);
   if (!set) return;
   for (const s of set) {

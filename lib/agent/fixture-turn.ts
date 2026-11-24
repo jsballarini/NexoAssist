@@ -1,6 +1,12 @@
 import type { AgentAdapters, AgentUserContext, TurnResult } from "./adapters";
-import { inferRulesFromContent, normalizeConfidence } from "../../src/lib/domain/rules";
+import { resolveDraftOperation } from "../../src/lib/domain/dedup";
+import {
+  detectOutOfScope,
+  inferRulesFromContent,
+  normalizeConfidence,
+} from "../../src/lib/domain/rules";
 import type { UiBlock } from "../../src/lib/conversation/types";
+import type { DraftSummary } from "./draft-types";
 import { runTool, type ToolName } from "./tools";
 
 type Plan = {
@@ -9,10 +15,152 @@ type Plan = {
   reply: string | ((data: unknown[]) => string);
   confidence: number;
   uiBlocks?: (data: unknown[]) => UiBlock[];
+  rulesOverride?: string[];
 };
 
-function matchPlan(input: string): Plan {
+async function matchPlan(
+  input: string,
+  ctx: AgentUserContext,
+  adapters: AgentAdapters,
+): Promise<Plan> {
   const lower = input.toLowerCase().trim();
+
+  if (detectOutOfScope(input)) {
+    return {
+      tools: [],
+      understanding: "Pedido fora do escopo de TI (RH/benefícios).",
+      reply:
+        "Esse assunto é tratado pelo RH, não pelo service desk de TI. Posso ajudar com acesso, VPN, hardware ou software.",
+      confidence: 92,
+      rulesOverride: ["OUT_OF_SCOPE"],
+    };
+  }
+
+  if (/preciso falar|falar com (um )?analista|falar com humano|quero um humano/.test(lower)) {
+    return {
+      tools: [
+        {
+          name: "transfer_to_analyst",
+          args: { reason: "Funcionário solicitou atendimento humano" },
+        },
+      ],
+      understanding: "Funcionário pede transferência para analista.",
+      reply:
+        "Vou transferir você para um analista humano. O assistente automático ficará pausado até a devolução.",
+      confidence: 88,
+    };
+  }
+
+  if (/vpn.*(win\s*11|windows\s*11)|win\s*11.*vpn|windows\s*11.*vpn/.test(lower)) {
+    return {
+      tools: [
+        {
+          name: "create_draft",
+          args: {
+            operation: "create",
+            type: "INC",
+            category: "rede_vpn",
+            title: "VPN Windows 11 — reunião 14h",
+            description: input,
+            priority: "high",
+            affectedScope:
+              /organiza/.test(lower)
+                ? "organization"
+                : /equipe|time/.test(lower)
+                  ? "team"
+                  : /só eu|somente eu|only_me/.test(lower)
+                    ? "only_me"
+                    : undefined,
+          },
+        },
+      ],
+      understanding: "Novo problema VPN Windows 11 com prioridade alta.",
+      reply: (data) => {
+        const d = data[0] as DraftSummary;
+        if (!d) return "Preparando rascunho de chamado VPN.";
+        return `Preparei o rascunho ${d.draftId} (prioridade alta). SLA previsto: ${new Date(d.dueAtPreview).toLocaleString("pt-BR")}. Confirme no card abaixo.`;
+      },
+      confidence: 76,
+      uiBlocks: (data) => {
+        const d = data[0] as DraftSummary;
+        const blocks: UiBlock[] = [];
+        if (d) {
+          blocks.push({
+            type: "draft_card",
+            draftId: d.draftId,
+            operation: d.operation,
+            title: d.title,
+            priority: d.priority,
+            dueAtPreview: d.dueAtPreview,
+            affectedScope: d.affectedScope,
+          });
+        }
+        if (!/só eu|equipe|organiza/i.test(lower)) {
+          blocks.push({
+            type: "quick_replies",
+            options: ["Só eu", "Equipe (5–20)", "Organização inteira"],
+          });
+        }
+        blocks.push({ type: "confidence", value: 76 });
+        return blocks;
+      },
+    };
+  }
+
+  if (
+    /notebook lento|mesmo notebook|lento após|lentidão no notebook/.test(lower) ||
+    (/inc-20311/.test(lower) && /adicion|complement|mais info|atualiz/.test(lower))
+  ) {
+    const open = await adapters.ticketClient.listOpen(ctx.userId);
+    const recent = await adapters.ticketClient.listRecentResolved(ctx.userId, 7);
+    const dedup = resolveDraftOperation(
+      "notebook lento após atualização",
+      open.map((t) => ({ id: t.id, title: t.title })),
+      recent.map((t) => ({ id: t.id, title: t.title })),
+    );
+    const target = dedup.targetTicketId ?? "INC-20311";
+    return {
+      tools: [
+        { name: "list_open_tickets", args: {} },
+        {
+          name: "create_draft",
+          args: {
+            operation: dedup.operation,
+            targetTicketId: target,
+            title: "Notebook lento após atualização do Windows",
+            description: input,
+            priority: "medium",
+          },
+        },
+      ],
+      understanding:
+        dedup.operation === "update"
+          ? "Mesmo problema no chamado aberto — atualizar em vez de criar novo."
+          : "Complemento de chamado existente.",
+      reply: (data) => {
+        const d = data[1] as DraftSummary;
+        return d
+          ? `Vou atualizar o chamado ${target} via rascunho ${d.draftId}. Confirme para aplicar as alterações.`
+          : `Atualização proposta para ${target}.`;
+      },
+      confidence: 82,
+      uiBlocks: (data) => {
+        const d = data[1] as DraftSummary;
+        if (!d) return [{ type: "confidence", value: 82 }];
+        return [
+          {
+            type: "draft_card",
+            draftId: d.draftId,
+            operation: d.operation,
+            title: d.title,
+            priority: d.priority,
+            dueAtPreview: d.dueAtPreview,
+          },
+          { type: "confidence", value: 82 },
+        ];
+      },
+    };
+  }
 
   if (/^(oi|olá|ola|bom dia|boa tarde)/.test(lower)) {
     return {
@@ -157,7 +305,7 @@ export async function runFixtureTurn(
   adapters: AgentAdapters,
   callbacks?: { onToken?: (d: string) => void },
 ): Promise<TurnResult> {
-  const plan = matchPlan(userMessage);
+  const plan = await matchPlan(userMessage, ctx, adapters);
   const toolResults: unknown[] = [];
   const actions: string[] = [];
 
@@ -166,12 +314,15 @@ export async function runFixtureTurn(
     toolResults.push(await runTool(t.name, t.args, ctx, adapters));
   }
 
-  const rulesFired = inferRulesFromContent(userMessage, actions);
+  const rulesFired = plan.rulesOverride ?? inferRulesFromContent(userMessage, actions);
   const evidence: TurnResult["trace"]["evidence"] = [];
 
   for (const r of toolResults) {
     if (Array.isArray(r)) {
-      for (const item of r as { id?: string; slug?: string; excerpt?: string }[]) {
+      for (const item of r as { id?: string; slug?: string; excerpt?: string; draftId?: string }[]) {
+        if ("draftId" in item && item.draftId) {
+          evidence.push({ type: "draft", id: item.draftId });
+        }
         if ("id" in item && item.id) {
           evidence.push({ type: "ticket", id: item.id });
         }
@@ -183,9 +334,10 @@ export async function runFixtureTurn(
           });
         }
       }
-    } else if (r && typeof r === "object" && "id" in r) {
-      const t = r as { id: string };
-      evidence.push({ type: "ticket", id: t.id });
+    } else if (r && typeof r === "object") {
+      const o = r as { id?: string; draftId?: string; slug?: string };
+      if (o.draftId) evidence.push({ type: "draft", id: o.draftId });
+      if (o.id) evidence.push({ type: "ticket", id: o.id });
     }
   }
 

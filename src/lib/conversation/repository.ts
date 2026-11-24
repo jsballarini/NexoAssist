@@ -2,9 +2,11 @@ import { prisma } from "@/lib/db";
 import type { ConversationState, MessageRole } from "@prisma/client";
 import type { AgentTracePayload, UiBlock } from "./types";
 
+const ACTIVE_EMPLOYEE_STATES: ConversationState[] = ["with_agent", "awaiting_analyst"];
+
 export async function findActiveConversation(userId: string) {
   return prisma.conversation.findFirst({
-    where: { userId, state: "with_agent" },
+    where: { userId, state: { in: ACTIVE_EMPLOYEE_STATES } },
     orderBy: { updatedAt: "desc" },
   });
 }
@@ -77,7 +79,7 @@ export async function addAssistantMessage(
     });
     await tx.conversation.update({
       where: { id: conversationId },
-      data: { messageCount: { increment: 1 }, updatedAt: new Date() },
+      data: { updatedAt: new Date() },
     });
     return msg;
   });
@@ -107,5 +109,15 @@ export async function ensureConversationState(
   await prisma.conversation.update({
     where: { id: conversationId },
     data: { state },
+  });
+}
+
+export async function addSystemMessage(conversationId: string, content: string) {
+  return prisma.message.create({
+    data: {
+      conversationId,
+      role: "system",
+      content,
+    },
   });
 }

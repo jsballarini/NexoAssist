@@ -9,6 +9,16 @@ describe("INT-CONV-01", () => {
     });
     expect(ana).toBeTruthy();
 
+    const conv = await prisma.conversation.findFirst({
+      where: { userId: ana!.id, state: { in: ["with_agent", "awaiting_analyst"] } },
+    });
+    if (conv) {
+      await prisma.conversation.update({
+        where: { id: conv.id },
+        data: { messageCount: 0, state: "with_agent" },
+      });
+    }
+
     const { conversationId, turnId } = await postUserMessage(
       ana!.id,
       ana!.name,

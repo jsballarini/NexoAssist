@@ -1,4 +1,15 @@
-let active = 0;
+const globalForLlm = globalThis as unknown as { __nexoLlmActive?: number };
+
+function getLlmActive() {
+  if (globalForLlm.__nexoLlmActive === undefined) {
+    globalForLlm.__nexoLlmActive = 0;
+  }
+  return globalForLlm.__nexoLlmActive;
+}
+
+function setLlmActive(n: number) {
+  globalForLlm.__nexoLlmActive = n;
+}
 
 export function shouldUseFixtures(): boolean {
   if (process.env.AGENT_EVAL_FIXTURES === "true") return true;
@@ -23,13 +34,13 @@ export function getMaxConcurrency(): number {
 
 export async function withLlmConcurrency<T>(fn: () => Promise<T>): Promise<T> {
   const max = getMaxConcurrency();
-  while (active >= max) {
+  while (getLlmActive() >= max) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  active += 1;
+  setLlmActive(getLlmActive() + 1);
   try {
     return await fn();
   } finally {
-    active -= 1;
+    setLlmActive(getLlmActive() - 1);
   }
 }

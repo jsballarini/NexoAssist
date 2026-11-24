@@ -5,7 +5,7 @@ import type { UiBlock } from "@/lib/conversation/types";
 
 export type ChatMessage = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   uiBlocks?: UiBlock[];
   trace?: {
@@ -16,10 +16,18 @@ export type ChatMessage = {
   };
 };
 
-export function useChatStream(conversationId: string | null) {
+type SendResult =
+  | { ok: true }
+  | { ok: false; code?: string; message: string; status: number };
+
+export function useChatStream(
+  conversationId: string | null,
+  onAfterTurn?: () => void,
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [draftAssistant, setDraftAssistant] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   const loadHistory = useCallback(async (convId: string) => {
@@ -29,7 +37,7 @@ export function useChatStream(conversationId: string | null) {
     setMessages(
       data.items.map((m) => ({
         id: m.id,
-        role: m.role as "user" | "assistant",
+        role: m.role as ChatMessage["role"],
         content: m.content,
         uiBlocks: m.uiBlocks,
         trace: m.trace ?? undefined,
@@ -38,28 +46,36 @@ export function useChatStream(conversationId: string | null) {
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!conversationId || !content.trim()) return;
+    async (content: string): Promise<SendResult> => {
+      if (!conversationId || !content.trim()) {
+        return { ok: false, message: "Conversa indisponível", status: 0 };
+      }
 
       const turnId = crypto.randomUUID();
       const userId = crypto.randomUUID();
 
-      setMessages((prev) => [
-        ...prev,
-        { id: userId, role: "user", content },
-      ]);
+      setMessages((prev) => [...prev, { id: userId, role: "user", content }]);
       setStreaming(true);
       setDraftAssistant("");
 
+      const activeRes = await fetch("/api/conversations/active");
+      const activeJson = (await activeRes.json()) as { conversationId?: string };
+      const convId = activeJson.conversationId ?? conversationId;
+      if (!convId) {
+        setStreaming(false);
+        return { ok: false, message: "Conversa indisponível", status: 0 };
+      }
+
       esRef.current?.close();
       const es = new EventSource(
-        `/api/conversations/${conversationId}/stream?turnId=${encodeURIComponent(turnId)}`,
+        `/api/conversations/${convId}/stream?turnId=${encodeURIComponent(turnId)}`,
       );
       esRef.current = es;
 
       let assistantContent = "";
       let uiBlocks: UiBlock[] | undefined;
       let trace: ChatMessage["trace"];
+      let turnFinished = false;
 
       const attachListeners = () => {
         es.addEventListener("token", (ev) => {
@@ -86,6 +102,7 @@ export function useChatStream(conversationId: string | null) {
         });
         es.addEventListener("done", (ev) => {
           const data = JSON.parse((ev as MessageEvent).data) as { messageId: string };
+          turnFinished = true;
           setMessages((prev) => [
             ...prev,
             {
@@ -99,6 +116,14 @@ export function useChatStream(conversationId: string | null) {
           setDraftAssistant("");
           setStreaming(false);
           es.close();
+          onAfterTurn?.();
+        });
+        es.addEventListener("agent_error", (ev) => {
+          const data = JSON.parse((ev as MessageEvent).data) as { message?: string };
+          turnFinished = true;
+          setToast(data.message ?? "Erro ao processar mensagem.");
+          setStreaming(false);
+          es.close();
         });
         es.addEventListener("error", () => {
           setStreaming(false);
@@ -108,22 +133,28 @@ export function useChatStream(conversationId: string | null) {
 
       attachListeners();
 
-      await new Promise<void>((resolve, reject) => {
-        const onOpen = () => {
-          cleanup();
-          resolve();
-        };
-        const onError = () => {
-          cleanup();
-          reject(new Error("Não foi possível conectar ao stream do assistente."));
-        };
-        const cleanup = () => {
-          es.removeEventListener("open", onOpen);
-          es.removeEventListener("error", onError);
-        };
-        es.addEventListener("open", onOpen);
-        es.addEventListener("error", onError);
-      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const onOpen = () => {
+            cleanup();
+            resolve();
+          };
+          const onError = () => {
+            cleanup();
+            reject(new Error("Não foi possível conectar ao stream do assistente."));
+          };
+          const cleanup = () => {
+            es.removeEventListener("open", onOpen);
+            es.removeEventListener("error", onError);
+          };
+          es.addEventListener("open", onOpen);
+          es.addEventListener("error", onError);
+        });
+      } catch {
+        setStreaming(false);
+        es.close();
+        return { ok: false, message: "Falha de conexão SSE", status: 0 };
+      }
 
       const res = await fetch("/api/conversations/active/messages", {
         method: "POST",
@@ -134,17 +165,85 @@ export function useChatStream(conversationId: string | null) {
       if (!res.ok) {
         setStreaming(false);
         es.close();
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+        };
+        const message = body.error ?? "Não foi possível enviar a mensagem";
+        if (res.status === 503) {
+          setToast("Sistema de chamados temporariamente indisponível. Tente novamente em instantes.");
+        }
+        return { ok: false, message, code: body.code, status: res.status };
       }
+
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          if (turnFinished) {
+            resolve();
+            return;
+          }
+          const finish = () => {
+            es.removeEventListener("done", finish);
+            es.removeEventListener("agent_error", finish);
+            resolve();
+          };
+          es.addEventListener("done", finish);
+          es.addEventListener("agent_error", finish);
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 45_000)),
+      ]);
+
+      if (!turnFinished) {
+        es.close();
+        setStreaming(false);
+        await loadHistory(convId);
+        onAfterTurn?.();
+      }
+
+      return { ok: true };
     },
-    [conversationId],
+    [conversationId, loadHistory, onAfterTurn],
   );
+
+  async function confirmDraft(draftId: string): Promise<boolean> {
+    if (!conversationId) return false;
+    const res = await fetch(`/api/tickets/drafts/${encodeURIComponent(draftId)}/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId }),
+    });
+    if (res.status === 503) {
+      setToast("Sistema de chamados temporariamente indisponível. Tente novamente em instantes.");
+      return false;
+    }
+    if (!res.ok) return false;
+    await loadHistory(conversationId);
+    onAfterTurn?.();
+    return true;
+  }
+
+  async function cancelDraft(draftId: string): Promise<boolean> {
+    const res = await fetch(`/api/tickets/drafts/${encodeURIComponent(draftId)}/cancel`, {
+      method: "POST",
+    });
+    if (res.status === 503) {
+      setToast("Sistema de chamados temporariamente indisponível.");
+      return false;
+    }
+    if (!res.ok) return false;
+    if (conversationId) await loadHistory(conversationId);
+    return true;
+  }
 
   return {
     messages,
     streaming,
     draftAssistant,
+    toast,
+    clearToast: () => setToast(null),
     sendMessage,
     loadHistory,
-    setMessages,
+    confirmDraft,
+    cancelDraft,
   };
 }

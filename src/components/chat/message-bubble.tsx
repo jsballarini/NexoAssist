@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import type { UiBlock } from "@/lib/conversation/types";
 import type { ChatMessage } from "./use-chat-stream";
 
@@ -24,12 +25,76 @@ function TicketCard({
   );
 }
 
-function UiBlocks({ blocks }: { blocks?: UiBlock[] }) {
+function DraftCard({
+  block,
+  onConfirm,
+  onCancel,
+}: {
+  block: Extract<UiBlock, { type: "draft_card" }>;
+  onConfirm?: (draftId: string) => Promise<boolean>;
+  onCancel?: (draftId: string) => Promise<boolean>;
+}) {
+  const due = new Date(block.dueAtPreview).toLocaleString("pt-BR");
+  return (
+    <div className="mt-2 rounded-lg border border-brand-200 bg-brand-50/50 p-3 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-gray-900">{block.draftId}</span>
+        <span className="text-xs uppercase text-gray-600">{block.operation}</span>
+      </div>
+      <p className="mt-1 font-medium text-gray-800">{block.title}</p>
+      <p className="text-xs text-gray-600">
+        Prioridade: {block.priority} · SLA previsto: {due}
+      </p>
+      {block.affectedScope ? (
+        <p className="text-xs text-gray-500">Afetados: {block.affectedScope}</p>
+      ) : null}
+      {onConfirm && onCancel ? (
+        <div className="mt-3 flex gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void onConfirm(block.draftId)}
+          >
+            Confirmar
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void onCancel(block.draftId)}
+          >
+            Cancelar
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function UiBlocks({
+  blocks,
+  onConfirmDraft,
+  onCancelDraft,
+}: {
+  blocks?: UiBlock[];
+  onConfirmDraft?: (draftId: string) => Promise<boolean>;
+  onCancelDraft?: (draftId: string) => Promise<boolean>;
+}) {
   if (!blocks?.length) return null;
   return (
     <div className="mt-2 space-y-2">
       {blocks.map((b, i) => {
         if (b.type === "ticket_card") return <TicketCard key={i} block={b} />;
+        if (b.type === "draft_card") {
+          return (
+            <DraftCard
+              key={i}
+              block={b}
+              onConfirm={onConfirmDraft}
+              onCancel={onCancelDraft}
+            />
+          );
+        }
         if (b.type === "kb_chips") {
           return (
             <div key={i} className="flex flex-wrap gap-2">
@@ -63,10 +128,22 @@ function UiBlocks({ blocks }: { blocks?: UiBlock[] }) {
 export function MessageBubble({
   message,
   onQuickReply,
+  onConfirmDraft,
+  onCancelDraft,
 }: {
   message: ChatMessage;
   onQuickReply?: (text: string) => void;
+  onConfirmDraft?: (draftId: string) => Promise<boolean>;
+  onCancelDraft?: (draftId: string) => Promise<boolean>;
 }) {
+  if (message.role === "system") {
+    return (
+      <p className="text-center text-xs text-gray-500" role="status">
+        {message.content}
+      </p>
+    );
+  }
+
   const isUser = message.role === "user";
   const quick =
     message.uiBlocks?.find((b) => b.type === "quick_replies") as
@@ -82,7 +159,13 @@ export function MessageBubble({
       }`}
     >
       <p className="whitespace-pre-wrap">{message.content}</p>
-      {!isUser ? <UiBlocks blocks={message.uiBlocks} /> : null}
+      {!isUser ? (
+        <UiBlocks
+          blocks={message.uiBlocks}
+          onConfirmDraft={onConfirmDraft}
+          onCancelDraft={onCancelDraft}
+        />
+      ) : null}
       {!isUser && message.trace ? (
         <details className="mt-2 text-xs text-gray-500">
           <summary className="cursor-pointer">Trace</summary>

@@ -6,7 +6,11 @@ import {
   createConversation,
 } from "./repository";
 import { executeTurn } from "./turn-runner";
-import { MESSAGE_LIMIT } from "./types";
+import {
+  ConversationAwaitingAnalystError,
+  MESSAGE_LIMIT,
+  SessionMessageLimitError,
+} from "./types";
 
 export async function getOrCreateActive(userId: string) {
   let conv = await findActiveConversation(userId);
@@ -46,6 +50,15 @@ export async function postUserMessage(
   turnId?: string,
 ) {
   const conv = await getOrCreateActive(userId);
+
+  if (conv.state === "awaiting_analyst") {
+    throw new ConversationAwaitingAnalystError();
+  }
+
+  if (conv.messageCount >= MESSAGE_LIMIT) {
+    throw new SessionMessageLimitError();
+  }
+
   const userMsg = await addUserMessage(conv.id, content);
   const id = turnId ?? randomUUID();
 

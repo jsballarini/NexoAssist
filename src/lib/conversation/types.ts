@@ -6,9 +6,34 @@ export type UiBlock =
       statusLabel: string;
       slaBreached: boolean;
     }
+  | {
+      type: "draft_card";
+      draftId: string;
+      operation: "create" | "update" | "reopen";
+      title: string;
+      priority: string;
+      dueAtPreview: string;
+      affectedScope?: string;
+    }
   | { type: "kb_chips"; articles: { slug: string; title: string }[] }
   | { type: "confidence"; value: number }
   | { type: "quick_replies"; options: string[] };
+
+export class SessionMessageLimitError extends Error {
+  readonly code = "SESSION_MESSAGE_LIMIT";
+  constructor() {
+    super("Limite de 30 mensagens suas nesta sessão atingido");
+    this.name = "SessionMessageLimitError";
+  }
+}
+
+export class ConversationAwaitingAnalystError extends Error {
+  readonly code = "CONVERSATION_AWAITING_ANALYST";
+  constructor() {
+    super("Conversa aguardando analista");
+    this.name = "ConversationAwaitingAnalystError";
+  }
+}
 
 export type AgentTracePayload = {
   understanding: string;
@@ -19,6 +44,7 @@ export type AgentTracePayload = {
 };
 
 export type SseEvent =
+  | { event: "ready"; data: { turnId: string } }
   | { event: "trace"; data: AgentTracePayload }
   | { event: "token"; data: { delta: string } }
   | {
@@ -32,6 +58,6 @@ export type SseEvent =
       };
     }
   | { event: "done"; data: { messageId: string } }
-  | { event: "error"; data: { code: string; message: string } };
+  | { event: "agent_error"; data: { code: string; message: string } };
 
 export const MESSAGE_LIMIT = 30;

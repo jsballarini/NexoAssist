@@ -37,6 +37,8 @@ export async function GET(request: Request, { params }: Params) {
         controller.enqueue(encoder.encode(formatSse(event)));
       };
 
+      send({ event: "ready", data: { turnId } });
+
       const unsubscribe = subscribeTurn(turnId, {
         send,
         close: () => {

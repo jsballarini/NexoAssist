@@ -1,5 +1,9 @@
 import { getSession } from "@/lib/auth/session";
 import { postUserMessage } from "@/lib/conversation";
+import {
+  ConversationAwaitingAnalystError,
+  SessionMessageLimitError,
+} from "@/lib/conversation/types";
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -35,13 +39,28 @@ export async function POST(request: Request) {
     select: { department: true },
   });
 
-  const result = await postUserMessage(
-    session.user.userId,
-    session.user.name,
-    user?.department ?? "",
-    parsed.data.content,
-    parsed.data.turnId,
-  );
-
-  return NextResponse.json(result, { status: 202 });
+  try {
+    const result = await postUserMessage(
+      session.user.userId,
+      session.user.name,
+      user?.department ?? "",
+      parsed.data.content,
+      parsed.data.turnId,
+    );
+    return NextResponse.json(result, { status: 202 });
+  } catch (error) {
+    if (error instanceof SessionMessageLimitError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 429 },
+      );
+    }
+    if (error instanceof ConversationAwaitingAnalystError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 423 },
+      );
+    }
+    throw error;
+  }
 }

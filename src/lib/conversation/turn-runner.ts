@@ -12,7 +12,7 @@ export async function executeTurn(params: {
   department: string;
   content: string;
 }) {
-  const adapters = createAgentAdapters();
+  const adapters = createAgentAdapters(params.userId);
 
   try {
     const result = await runAgentTurn(
@@ -21,6 +21,7 @@ export async function executeTurn(params: {
         userId: params.userId,
         userName: params.userName,
         department: params.department,
+        conversationId: params.conversationId,
       },
       adapters,
       {
@@ -60,7 +61,7 @@ export async function executeTurn(params: {
     closeTurn(params.turnId);
   } catch (err) {
     publishTurnEvent(params.turnId, {
-      event: "error",
+      event: "agent_error",
       data: {
         code: "AGENT_ERROR",
         message: err instanceof Error ? err.message : "Erro no agent",

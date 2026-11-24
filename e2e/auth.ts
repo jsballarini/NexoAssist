@@ -22,7 +22,18 @@ export async function loginAsAna(page: Page) {
   ).toBeTruthy();
 
   await page.goto("/atendimento", { waitUntil: "domcontentloaded" });
+  await page.request.post("/api/conversations/active/new-session");
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/atendimento/);
+  await expect(page.locator('[data-chat-ready="true"]')).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
+export async function freshChatSession(page: Page) {
+  const res = await page.request.post("/api/conversations/active/new-session");
+  expect(res.ok()).toBeTruthy();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-chat-ready="true"]')).toBeVisible({
     timeout: 30_000,
   });
