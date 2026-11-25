@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { deleteTicketsByTitlePrefix } from "../tests/support/cleanup";
+import { deletePendingDrafts, deleteTicketsByTitlePrefix } from "../tests/support/cleanup";
 import { loginAsAna } from "./auth";
 
 const EDITED_TITLE = "VPN Windows 11 - editado no card";
 
 test("E2E-DRAFT-EDIT: card mostra os 6 campos em PT-BR, edita via PATCH e confirma", async ({ page }) => {
   await deleteTicketsByTitlePrefix("ana.souza@nexo.com.br", "VPN Windows 11");
+  await deletePendingDrafts("ana.souza@nexo.com.br");
   await loginAsAna(page);
 
   await page.getByPlaceholder("Escreva para o Nexo…").fill(

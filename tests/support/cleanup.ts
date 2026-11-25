@@ -13,6 +13,19 @@ export async function deleteTicketsByTitlePrefix(email: string, titlePrefix: str
   return result.count;
 }
 
+/**
+ * Remove rascunhos pendentes de um usuário. Evals que chamam `create_draft` deixam rascunhos
+ * pendentes que o agent reaproveita como contexto (e que o E2E confirmaria por engano).
+ */
+export async function deletePendingDrafts(email: string): Promise<number> {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return 0;
+  const result = await prisma.ticketDraft.deleteMany({
+    where: { requesterId: user.id, status: "pending" },
+  });
+  return result.count;
+}
+
 /** Desconecta o Prisma do processo de teste. */
 export async function disconnectTestDb(): Promise<void> {
   await prisma.$disconnect();

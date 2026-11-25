@@ -1,6 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { deleteTicketsByTitlePrefix } from "../support/cleanup";
+import { deletePendingDrafts, deleteTicketsByTitlePrefix } from "../support/cleanup";
 import { findAnaUserId, runEvalTurn } from "./helpers";
 import { INTENT_VARIATIONS } from "./variations";
 
@@ -20,6 +20,10 @@ describe("EVAL-VAR: variações de frase por intenção", () => {
       where: { requesterId: { not: anaId } },
       select: { publicId: true, title: true },
     });
+  });
+
+  afterAll(async () => {
+    await deletePendingDrafts("ana.souza@nexo.com.br");
   });
 
   for (const variation of INTENT_VARIATIONS) {

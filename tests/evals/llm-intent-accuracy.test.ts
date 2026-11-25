@@ -1,6 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { deleteTicketsByTitlePrefix } from "../support/cleanup";
+import { deletePendingDrafts, deleteTicketsByTitlePrefix } from "../support/cleanup";
 import { findAnaUserId, runEvalTurn } from "./helpers";
 import { countPhrases, INTENT_VARIATIONS } from "./variations";
 
@@ -18,6 +18,10 @@ describe.skipIf(!ENABLED)("EVAL-LLM: acurácia por intenção com o modelo real"
 
   beforeAll(async () => {
     await deleteTicketsByTitlePrefix("ana.souza@nexo.com.br", "E-mail corporativo indisponível");
+  });
+
+  afterAll(async () => {
+    await deletePendingDrafts("ana.souza@nexo.com.br");
   });
 
   it(
