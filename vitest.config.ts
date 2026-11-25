@@ -9,7 +9,8 @@ export default defineConfig({
     env: {
       TICKET_CHAOS_RATE: "0",
       TEST_USE_WALL_CLOCK: "false",
-      AGENT_EVAL_FIXTURES: "true",
+      // `npm run test:evals:llm` define EVAL_USE_LLM=true para exercitar o modelo real.
+      AGENT_EVAL_FIXTURES: process.env.EVAL_USE_LLM === "true" ? "false" : "true",
     },
   },
   resolve: {

@@ -25,6 +25,8 @@ import {
 import type { ImpactScope, Urgency } from "../../src/lib/domain/priority";
 
 const TICKET_ID_PATTERN = /\b(?:inc|req)-\d+\b/i;
+const STATUS_LIST_PATTERN =
+  /(status|andamento|situa[cç][aã]o).*(chamado|ticket)|meus (chamados|tickets)|(chamados?|tickets?) abert/;
 const SAP_RESET_PATTERN = /sap.*(bloquead|senha)|senha.*sap/;
 const VPN_WIN11_PATTERN = /vpn.*(win\s*11|windows\s*11)|win\s*11.*vpn|windows\s*11.*vpn/;
 const SCOPE_QUESTION = "quem é afetado";
@@ -288,7 +290,7 @@ async function matchPlan(
 
   if (
     /notebook lento|mesmo notebook|lento após|lentidão no notebook/.test(lower) ||
-    (TICKET_ID_PATTERN.test(lower) && /adicion|complement|mais info|atualiz/.test(lower))
+    (TICKET_ID_PATTERN.test(lower) && /adicion|complement|mais info|atualiz|acrescent/.test(lower))
   ) {
     const open = await adapters.ticketClient.listOpen(ctx.userId);
     const recent = await adapters.ticketClient.listRecentResolved(ctx.userId, 7);
@@ -341,7 +343,7 @@ async function matchPlan(
     };
   }
 
-  if (/status.*chamado|meus chamados|chamados abertos/.test(lower)) {
+  if (STATUS_LIST_PATTERN.test(lower) && !TICKET_ID_PATTERN.test(lower)) {
     return {
       tools: [{ name: "list_open_tickets", args: {} }],
       understanding: "Usuário quer saber o status dos chamados abertos.",
@@ -484,7 +486,7 @@ async function matchPlan(
     };
   }
 
-  if (/todo (mundo|a empresa|a organização).*sem e-mail|e-mail.*(caiu|parou)|outlook.*empresa.*parou/.test(lower)) {
+  if (/todo (mundo|a empresa|a organização).*sem e-?mail|e-?mail.*(caiu|parou)|outlook.*empresa.*parou/.test(lower)) {
     return {
       tools: [
         {
@@ -508,6 +510,7 @@ async function matchPlan(
           : "Preparando chamado crítico de e-mail.";
       },
       confidence: 78,
+      uiBlocks: (data) => draftBlocks(asDraft(data[0]), 78),
       rulesOverride: ["SLA_CRITICAL", "SCOPE_IT"],
     };
   }
@@ -557,6 +560,7 @@ async function matchPlan(
           : `Preparei o rascunho ${d.draftId} para desbloquear sua senha SAP. Confirme no card abaixo.`;
       },
       confidence: 81,
+      uiBlocks: (data) => draftBlocks(asDraft(data[1]), 81),
     };
   }
 

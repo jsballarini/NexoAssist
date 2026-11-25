@@ -31,7 +31,7 @@ export type TransferDecision = {
 
 /** Detecta pedido explícito de atendimento humano. */
 export const TRANSFER_REQUEST_PATTERN =
-  /preciso falar|falar com (um |o )?(analista|humano|atendente)|quero (um )?(humano|analista)|chamar (um )?analista/i;
+  /preciso falar|falar com (um |uma |o |a )?(analista|humano|atendente|pessoa)|quero (um |uma )?(humano|analista|atendente|pessoa)|chamar (um |uma )?(analista|atendente)|\b(passa|passar|transfer\w*|encaminh\w*)\b.{0,25}\b(analista|humano|atendente)/i;
 
 export function userRequestedAnalyst(message: string): boolean {
   return TRANSFER_REQUEST_PATTERN.test(message);
