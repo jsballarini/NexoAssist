@@ -7,7 +7,25 @@ import {
 } from "../../src/lib/domain/rules";
 import type { UiBlock } from "../../src/lib/conversation/types";
 import type { DraftSummary } from "./draft-types";
+import { collectEvidence } from "./evidence";
+import { EMPTY_TURN_CONTEXT, type TurnContext } from "./turn-context";
 import { runTool, type ToolName } from "./tools";
+
+const TICKET_ID_PATTERN = /\b(?:inc|req)-\d+\b/i;
+const SAP_RESET_PATTERN = /sap.*(bloquead|senha)|senha.*sap/;
+const SCOPE_REPLIES: { pattern: RegExp; scope: "only_me" | "team" | "organization" }[] = [
+  { pattern: /^(só eu|somente eu|apenas eu)/, scope: "only_me" },
+  { pattern: /^equipe/, scope: "team" },
+  { pattern: /^organiza/, scope: "organization" },
+];
+
+function extractTicketId(input: string): string | undefined {
+  return input.match(TICKET_ID_PATTERN)?.[0].toUpperCase();
+}
+
+function scopeFromReply(lower: string) {
+  return SCOPE_REPLIES.find((r) => r.pattern.test(lower))?.scope;
+}
 
 type Plan = {
   tools: { name: ToolName; args: Record<string, unknown> }[];
@@ -22,8 +40,55 @@ async function matchPlan(
   input: string,
   ctx: AgentUserContext,
   adapters: AgentAdapters,
+  turnContext: TurnContext,
 ): Promise<Plan> {
   const lower = input.toLowerCase().trim();
+
+  const pending = turnContext.pendingDraft;
+  const replyScope = pending ? scopeFromReply(lower) : undefined;
+  if (pending && replyScope) {
+    return {
+      tools: [
+        { name: "cancel_draft", args: { draftId: pending.draftId } },
+        {
+          name: "create_draft",
+          args: {
+            operation: pending.operation,
+            targetTicketId: pending.targetTicketId,
+            title: pending.title,
+            description: pending.title,
+            priority: pending.priority,
+            affectedScope: replyScope,
+          },
+        },
+      ],
+      understanding: "Funcionário informou quem é afetado; refazendo o rascunho pendente.",
+      reply: (data) => {
+        const d = data[1] as DraftSummary | undefined;
+        return d
+          ? `Atualizei o rascunho (${d.draftId}) com a abrangência informada. Confirme no card abaixo.`
+          : "Atualizei o rascunho com a abrangência informada.";
+      },
+      confidence: 80,
+      uiBlocks: (data) => {
+        const d = data[1] as DraftSummary | undefined;
+        const blocks: UiBlock[] = [];
+        if (d) {
+          blocks.push({
+            type: "draft_card",
+            draftId: d.draftId,
+            operation: d.operation,
+            title: d.title,
+            priority: d.priority,
+            dueAtPreview: d.dueAtPreview,
+            affectedScope: d.affectedScope,
+          });
+        }
+        blocks.push({ type: "confidence", value: 80 });
+        return blocks;
+      },
+    };
+  }
 
   if (detectOutOfScope(input)) {
     return {
@@ -109,7 +174,7 @@ async function matchPlan(
 
   if (
     /notebook lento|mesmo notebook|lento após|lentidão no notebook/.test(lower) ||
-    (/inc-20311/.test(lower) && /adicion|complement|mais info|atualiz/.test(lower))
+    (TICKET_ID_PATTERN.test(lower) && /adicion|complement|mais info|atualiz/.test(lower))
   ) {
     const open = await adapters.ticketClient.listOpen(ctx.userId);
     const recent = await adapters.ticketClient.listRecentResolved(ctx.userId, 7);
@@ -118,7 +183,7 @@ async function matchPlan(
       open.map((t) => ({ id: t.id, title: t.title })),
       recent.map((t) => ({ id: t.id, title: t.title })),
     );
-    const target = dedup.targetTicketId ?? "INC-20311";
+    const target = dedup.targetTicketId ?? extractTicketId(input) ?? open[0]?.id;
     return {
       tools: [
         { name: "list_open_tickets", args: {} },
@@ -215,9 +280,13 @@ async function matchPlan(
             slaBreached: true,
           });
         }
+        const focus = breached ?? tickets[0];
         blocks.push({
           type: "quick_replies",
-          options: ["Detalhes do INC-20311", "Horário do service desk"],
+          options: [
+            ...(focus ? [`Detalhes do ${focus.id}`] : []),
+            "Horário do service desk",
+          ],
         });
         return blocks;
       },
@@ -249,26 +318,31 @@ async function matchPlan(
     };
   }
 
-  if (/inc-20311.*(vencid|analista)|vencid.*inc-20311|chamado vencido.*analista/.test(lower)) {
+  const mentionedTicket = extractTicketId(input);
+  if (
+    (mentionedTicket && /vencid|analista/.test(lower)) ||
+    /chamado vencido.*analista/.test(lower)
+  ) {
+    const open = mentionedTicket ? [] : await adapters.ticketClient.listOpen(ctx.userId);
+    const ticketId = mentionedTicket ?? open.find((t) => t.slaBreached)?.id;
     return {
       tools: [
-        { name: "get_ticket", args: { publicId: "INC-20311" } },
+        ...(ticketId ? [{ name: "get_ticket" as const, args: { publicId: ticketId } }] : []),
         {
           name: "transfer_to_analyst",
           args: { reason: "Chamado com SLA vencido — contexto para analista" },
         },
       ],
       understanding: "Chamado vencido; transferência com contexto.",
-      reply:
-        "O INC-20311 está com SLA vencido. Vou transferir você para um analista com esse contexto.",
+      reply: `${ticketId ? `O ${ticketId}` : "O chamado"} está com SLA vencido. Vou transferir você para um analista com esse contexto.`,
       confidence: 86,
     };
   }
 
-  if (/inc-20311|20311/.test(lower)) {
+  if (mentionedTicket) {
     return {
-      tools: [{ name: "get_ticket", args: { publicId: "INC-20311" } }],
-      understanding: "Usuário consulta andamento do INC-20311.",
+      tools: [{ name: "get_ticket", args: { publicId: mentionedTicket } }],
+      understanding: `Usuário consulta andamento do ${mentionedTicket}.`,
       reply: (data) => {
         const t = data[0] as {
           id: string;
@@ -329,30 +403,47 @@ async function matchPlan(
     };
   }
 
-  if (
-    /sap.*(bloquead|senha)|senha.*sap/.test(lower) &&
-    ctx.userName.toLowerCase().includes("diego")
-  ) {
+  if (SAP_RESET_PATTERN.test(lower)) {
     const recent = await adapters.ticketClient.listRecentResolved(ctx.userId, 7);
-    const target = recent.find((t) => t.id === "INC-20150")?.id ?? "INC-20150";
+    const dedup = resolveDraftOperation(
+      "senha SAP bloqueada",
+      [],
+      recent.map((t) => ({ id: t.id, title: t.title })),
+    );
+    const target = dedup.operation === "reopen" ? dedup.targetTicketId : undefined;
     return {
       tools: [
         { name: "list_recent_resolved", args: {} },
-        {
-          name: "reopen_ticket",
-          args: {
-            targetTicketId: target,
-            title: "Senha SAP bloqueada novamente",
-            description: input,
-          },
-        },
+        target
+          ? {
+              name: "reopen_ticket",
+              args: {
+                targetTicketId: target,
+                title: "Senha SAP bloqueada novamente",
+                description: input,
+              },
+            }
+          : {
+              name: "create_draft",
+              args: {
+                operation: "create",
+                type: "INC",
+                category: "acesso",
+                title: "Senha SAP bloqueada",
+                description: input,
+                priority: "high",
+              },
+            },
       ],
-      understanding: "Reabertura de INC-20150 (resolvido há poucos dias).",
+      understanding: target
+        ? `Reabertura de ${target} (resolvido há poucos dias).`
+        : "Nenhum chamado SAP recente; novo chamado de acesso.",
       reply: (data) => {
-        const d = data[1] as DraftSummary;
-        return d
+        const d = data[1] as DraftSummary | undefined;
+        if (!d) return "Preparando proposta para o problema de senha SAP.";
+        return target
           ? `Vou reabrir ${target} via rascunho ${d.draftId}. Confirme para aplicar.`
-          : `Reabertura proposta para ${target}.`;
+          : `Preparei o rascunho ${d.draftId} para desbloquear sua senha SAP. Confirme no card abaixo.`;
       },
       confidence: 81,
     };
@@ -423,9 +514,14 @@ export async function runFixtureTurn(
   ctx: AgentUserContext,
   adapters: AgentAdapters,
   callbacks?: { onToken?: (d: string) => void },
-  options?: { emitTokens?: boolean },
+  options?: { emitTokens?: boolean; turnContext?: TurnContext },
 ): Promise<TurnResult> {
-  const plan = await matchPlan(userMessage, ctx, adapters);
+  const plan = await matchPlan(
+    userMessage,
+    ctx,
+    adapters,
+    options?.turnContext ?? EMPTY_TURN_CONTEXT,
+  );
   const toolResults: unknown[] = [];
   const actions: string[] = [];
 
@@ -435,31 +531,7 @@ export async function runFixtureTurn(
   }
 
   const rulesFired = plan.rulesOverride ?? inferRulesFromContent(userMessage, actions);
-  const evidence: TurnResult["trace"]["evidence"] = [];
-
-  for (const r of toolResults) {
-    if (Array.isArray(r)) {
-      for (const item of r as { id?: string; slug?: string; excerpt?: string; draftId?: string }[]) {
-        if ("draftId" in item && item.draftId) {
-          evidence.push({ type: "draft", id: item.draftId });
-        }
-        if ("id" in item && item.id) {
-          evidence.push({ type: "ticket", id: item.id });
-        }
-        if ("slug" in item && item.slug) {
-          evidence.push({
-            type: "article",
-            id: item.slug,
-            excerpt: item.excerpt,
-          });
-        }
-      }
-    } else if (r && typeof r === "object") {
-      const o = r as { id?: string; draftId?: string; slug?: string };
-      if (o.draftId) evidence.push({ type: "draft", id: o.draftId });
-      if (o.id) evidence.push({ type: "ticket", id: o.id });
-    }
-  }
+  const evidence = collectEvidence(toolResults);
 
   const content =
     typeof plan.reply === "function" ? plan.reply(toolResults) : plan.reply;
