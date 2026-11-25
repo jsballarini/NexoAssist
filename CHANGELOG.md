@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-25
+
+Release de consolidação: paridade visual com o Desafio Beyond the Bytes, fluxo analista/funcionário (handback, encerrados), duplicidade reforçada, suite E2E estável (16 specs) e README alinhado ao PRD.
+
 ### Adicionado
 
 - **Paridade de UI (Desafio):** tokens `nexo.*` e mapeamento em `docs/anexos/protótipo-mapeamento.md`; login split, shell do funcionário, chat (coluna ~600px, status line, cards de rascunho/chamado/seletor), perfil em dois cartões, console do analista (fila, thread, takeover, painel Chamados | Trace).

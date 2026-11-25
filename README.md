@@ -2,7 +2,7 @@
 
 Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseline de produto: [docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf). Lacunas documentadas: [docs/desafio/GAPS.md](docs/desafio/GAPS.md).
 
-**Versão da aplicação:** `0.8.0-m8.3` — ver [CHANGELOG.md](CHANGELOG.md) (*Unreleased*: paridade visual com o Desafio + cache E2E isolado).
+**Versão da aplicação:** `0.9.0` — ver [CHANGELOG.md](CHANGELOG.md).
 
 **Sumário da entrega:** [Como o agent decide](#como-o-agent-decide) · [Garantia da qualidade](#garantia-da-qualidade) · [Escolha do modelo](#escolha-do-modelo) · [Decisões e trade-offs](#decisões-e-trade-offs) · [O que faria com mais tempo](#o-que-faria-com-mais-tempo) · [Custo por conversa](#custo-por-conversa)
 
@@ -146,7 +146,8 @@ Detalhes: [`.env.example`](.env.example), [02-09](docs/02-especificacao/02-09-va
 | Marco | Estado |
 |-------|--------|
 | M1–M7.1 | Concluídos — [status](docs/desenvolvimento/status-implementacao.md) |
-| M8.1–M8.3 | Concluídos — regras de negócio e transferência com resumo (M8.2), UI de rascunho, fila de revisão e entrega (M8.3); [GAPS2](docs/desafio/GAPS2.md) |
+| M8.1–M8.3 | Concluídos — regras de negócio e transferência com resumo (M8.2), UI de rascunho, fila de revisão e entrega (M8.3) |
+| **0.9.0** | Release — paridade visual Desafio, handoff/encerrados, E2E 16 specs; [CHANGELOG](CHANGELOG.md#090---2026-11-25) |
 
 ## Como o agent decide
 

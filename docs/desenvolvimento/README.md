@@ -1,6 +1,6 @@
 # Desenvolvimento — código no repositório
 
-**Última atualização:** 2026-11-25 — app `0.8.0-m8.3`
+**Última atualização:** 2026-11-25 — app `0.9.0`
 
 Esta pasta descreve **o que está implementado** no monólito Next.js e como operá-lo localmente. Não substitui a especificação canônica ([02-07](../02-especificacao/02-07-contratos-api.md), [02-09](../02-especificacao/02-09-variaveis-ambiente.md), modelo [02-06](../02-especificacao/02-06-modelo-dados.md)).
 

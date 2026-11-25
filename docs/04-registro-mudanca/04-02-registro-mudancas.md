@@ -45,6 +45,7 @@
 
 | 0.3.5 | 2026-11-25 | CR **gaps-v2 Etapa 02** (G2-RG-01..07, G2-RS-01/02, G2-TS-01/02): migração `20261125000000_ticket_updates_transfer_handoff` (`TicketUpdate`, `Ticket.transferReason`, `Conversation.handoffSummary`); `TicketServiceClient.transfer`; `create_draft` com `impact`/`urgency`; novas ENV `TICKET_RETRY_ATTEMPTS`, `TICKET_RETRY_BACKOFF_MS`, `TICKET_RETRY_TURN_BUDGET_MS`; campo aditivo `handoffSummary` em `GET /api/analyst/conversations/:id/messages`; app `0.8.0-m8.2` | Juliano Ballarini |
 | 0.3.6 | 2026-11-25 | CR **gaps-v2 Etapa 03** (G2-UI-01..03, G2-AN-01/02, G2-QA-01..04): `PATCH /api/tickets/drafts/:draftId` (edição de rascunho pendente); campos aditivos `ticketType`/`category`/`description` em `draft_card` e `DraftSummary`; `GET /api/analyst/inbox` com `needsReview` e `inboxKind` (inclui conversas `with_agent` de baixa confiança); `npm run test:evals:llm` e ENV `EVAL_USE_LLM`/`EVAL_LLM_MIN_ACCURACY`; README com seções do PRD; app `0.8.0-m8.3` | Juliano Ballarini |
+| 0.3.7 | 2026-11-25 | Release app **0.9.0**: paridade UI Desafio, conversas encerradas/handback, dedup reforçada, `reset-employee-chat` (dev), cache E2E `.next-playwright`, README arquitetura; ver [CHANGELOG](../../CHANGELOG.md#090---2026-11-25) | Juliano Ballarini |
 
 ## Solicitações (template)
 

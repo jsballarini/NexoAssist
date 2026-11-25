@@ -63,7 +63,7 @@ Este diretório consolida a especificação de iniciação, escopo, arquitetura,
 | Documento | Descrição |
 |-----------|-----------|
 | [desafio/README.md](desafio/README.md) | PDF PRD v5, protótipo Pencil, PNGs |
-| [desafio/GAPS.md](desafio/GAPS.md) | Lacunas baseline vs entrega atual (`0.8.0-m8.3`) |
+| [desafio/GAPS.md](desafio/GAPS.md) | Lacunas baseline vs entrega atual (`0.9.0`) |
 
 ### Anexos
 

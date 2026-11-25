@@ -51,6 +51,11 @@ Diagrama M5: [arquitetura-codigo.md](../desenvolvimento/arquitetura-codigo.md).
 - `update`/`reopen` **acrescentam** uma linha em `TicketUpdate` (histórico append-only); a descrição original do chamado nunca é sobrescrita. Divergência da spec anterior, que sobrescrevia.
 - Os adapters do agent usam `createResilientTicketClient` (retry/backoff por env, teto por turno). A API HTTP mantém o 503 imediato.
 
+**Paridade Desafio e estabilidade (0.9.0):**
+- Tokens `nexo.*`, login split, chat e console analista alinhados aos PNG/`nexo.pen`; chip **Encerrados**; handback visível em **Com o agent** ("Agent retomou"); mensagens do funcionário em `with_analyst`; E2E em `127.0.0.1:3099` com `NEXT_DIST_DIR=.next-playwright` (16 specs).
+- `GET /api/dev/reset-employee-chat` normaliza sessão do funcionário entre testes (não produção).
+- README com diagrama interface → agent → serviços; versão semver `0.9.0`.
+
 **UI de rascunho, console e entrega (0.8.0-m8.3):**
 - `PATCH /api/tickets/drafts/:draftId` edita os seis campos do rascunho pendente (`DraftPatchSchema`, só o dono). O rascunho guardado não tem impacto/urgência: a prioridade editada vale como está e o SLA previsto é recalculado a partir dela.
 - `draft_card` e `DraftSummary` expõem, de forma aditiva, `ticketType`/`type`, `category` e `description`; o `DraftCard` mostra tudo em português e edita inline.

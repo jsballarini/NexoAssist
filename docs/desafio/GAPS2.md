@@ -1,7 +1,7 @@
 # Gaps 2 — comportamento real vs PRD v5
 
 **Data:** 2026-11-24  
-**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 entregue em `0.8.0-m8.1`; Etapa 02 em `0.8.0-m8.2`; Etapa 03 em `0.8.0-m8.3`)  
+**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 em `0.8.0-m8.1`; Etapa 02 em `0.8.0-m8.2`; Etapa 03 em `0.8.0-m8.3`; **consolidação** paridade UI e E2E em `0.9.0`)  
 **Baseline:** [PRD v5](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf) + protótipo [nexo/nexo.pen](nexo/nexo.pen)
 
 Complementa [GAPS.md](GAPS.md). O `GAPS.md` mede a entrega contra a especificação interna (02-xx) e marca tudo como resolvido. Este documento mede o **comportamento do código** contra o PRD, com foco nos critérios de avaliação ("Qualidade das decisões", "Condução da conversa", "Transparência").

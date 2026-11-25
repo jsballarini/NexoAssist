@@ -1,7 +1,7 @@
 # Status da implementação
 
 **Atualizado:** 2026-11-25  
-**Versão app:** `0.8.0-m8.3` (+ alterações documentadas em [CHANGELOG.md](../../CHANGELOG.md) § Unreleased)  
+**Versão app:** `0.9.0` — ver [CHANGELOG.md](../../CHANGELOG.md) § 0.9.0  
 **Registro formal as-built:** [04-03-as-built.md](../04-registro-mudanca/04-03-as-built.md).
 
 ## Marcos M1–M5
@@ -44,4 +44,4 @@ Chips do console (rótulos do PNG): **Todas | Para você | Com o agent | Minhas*
 
 ## Próximo passo
 
-Versão tag **`0.8.0-m8.4`** (ou consolidar *Unreleased* no CHANGELOG) + as-built M6 conforme [04-03](../04-registro-mudanca/04-03-as-built.md).
+As-built M6 / deploy público opcional (`G2-QA-05`) conforme [04-03](../04-registro-mudanca/04-03-as-built.md).
