@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { UiBlock } from "@/lib/conversation/types";
 import { useCallback, useEffect, useState } from "react";
 import { MessageBubble } from "./message-bubble";
 import { useChatStream } from "./use-chat-stream";
@@ -13,9 +14,31 @@ type ConvMeta = {
   state: "with_agent" | "awaiting_analyst" | "with_analyst" | "closed";
 };
 
+type SessionItem = {
+  conversationId: string;
+  sessionSequence: number;
+  state: string;
+  updatedAt: string;
+  preview: string;
+};
+
+type DraftBlock = Extract<UiBlock, { type: "draft_card" }>;
+
+function MessageSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse" aria-hidden>
+      <div className="mr-auto h-16 w-2/3 rounded-2xl bg-gray-200" />
+      <div className="ml-auto h-12 w-1/2 rounded-2xl bg-gray-300" />
+      <div className="mr-auto h-20 w-3/4 rounded-2xl bg-gray-200" />
+    </div>
+  );
+}
+
 export function ChatWorkspace() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [meta, setMeta] = useState<ConvMeta | null>(null);
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [showLimitModal, setShowLimitModal] = useState(false);
 
@@ -30,8 +53,16 @@ export function ChatWorkspace() {
     }
   }, []);
 
+  const loadSessions = useCallback(async () => {
+    const res = await fetch("/api/conversations/sessions");
+    if (!res.ok) return;
+    const data = (await res.json()) as { items: SessionItem[] };
+    setSessions(data.items);
+  }, []);
+
   const {
     messages,
+    historyLoading,
     streaming,
     draftAssistant,
     toast,
@@ -42,22 +73,26 @@ export function ChatWorkspace() {
     cancelDraft,
   } = useChatStream(conversationId, () => {
     void refreshMeta();
+    void loadSessions();
   });
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       await refreshMeta();
+      await loadSessions();
       if (cancelled) return;
       const res = await fetch("/api/conversations/active");
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as ConvMeta;
-      await loadHistory(data.conversationId);
+      if (!viewingHistoryId) {
+        await loadHistory(data.conversationId);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [loadHistory, refreshMeta]);
+  }, [loadHistory, loadSessions, refreshMeta, viewingHistoryId]);
 
   async function handleNewSession() {
     const res = await fetch("/api/conversations/active/new-session", {
@@ -65,13 +100,30 @@ export function ChatWorkspace() {
     });
     if (!res.ok) return;
     const data = (await res.json()) as ConvMeta;
+    setViewingHistoryId(null);
     setConversationId(data.conversationId);
     setMeta(data);
     setShowLimitModal(false);
     await loadHistory(data.conversationId);
+    await loadSessions();
+  }
+
+  async function handleSelectHistory(id: string) {
+    setViewingHistoryId(id);
+    await loadHistory(id);
+  }
+
+  async function handleBackToActive() {
+    setViewingHistoryId(null);
+    await refreshMeta();
+    const res = await fetch("/api/conversations/active");
+    if (!res.ok) return;
+    const data = (await res.json()) as ConvMeta;
+    await loadHistory(data.conversationId);
   }
 
   async function handleSend(text?: string) {
+    if (viewingHistoryId) return;
     const content = (text ?? input).trim();
     if (!content) return;
     setInput("");
@@ -84,11 +136,24 @@ export function ChatWorkspace() {
     }
   }
 
+  function handleEditDraft(block: DraftBlock) {
+    if (viewingHistoryId) return;
+    setInput(block.title);
+  }
+
+  const historyMode = viewingHistoryId !== null;
   const awaiting = meta?.state === "awaiting_analyst";
   const withAnalyst = meta?.state === "with_analyst";
   const atLimit = meta ? meta.messageCount >= meta.messageLimit : false;
   const composerDisabled =
-    streaming || !conversationId || awaiting || withAnalyst || atLimit;
+    historyMode ||
+    streaming ||
+    !conversationId ||
+    awaiting ||
+    withAnalyst ||
+    atLimit;
+
+  const showSkeleton = !conversationId || historyLoading;
 
   return (
     <div
@@ -96,6 +161,17 @@ export function ChatWorkspace() {
       data-chat-ready={conversationId ? "true" : "false"}
       data-conversation-state={meta?.state ?? "with_agent"}
     >
+      {historyMode ? (
+        <div
+          className="border-b border-gray-300 bg-gray-100 px-4 py-2 text-sm text-gray-800"
+          role="status"
+        >
+          Visualizando sessão anterior — somente leitura.{" "}
+          <button type="button" className="font-medium underline" onClick={() => void handleBackToActive()}>
+            Voltar à sessão ativa
+          </button>
+        </div>
+      ) : null}
       {awaiting ? (
         <div
           className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
@@ -125,16 +201,39 @@ export function ChatWorkspace() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-4 py-2">
         <p className="text-xs text-gray-500">
           {meta?.messageCount ?? 0}/{meta?.messageLimit ?? 30} mensagens suas nesta sessão
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={handleNewSession}>
-          Nova sessão
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {sessions.length > 0 ? (
+            <label className="flex items-center gap-1 text-xs text-gray-600">
+              Histórico
+              <select
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                value={viewingHistoryId ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (!id) void handleBackToActive();
+                  else void handleSelectHistory(id);
+                }}
+              >
+                <option value="">Sessão ativa</option>
+                {sessions.map((s) => (
+                  <option key={s.conversationId} value={s.conversationId}>
+                    Sessão {s.sessionSequence} — {s.preview.slice(0, 40)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <Button type="button" variant="outline" size="sm" onClick={handleNewSession}>
+            Nova sessão
+          </Button>
+        </div>
       </div>
 
-      {showLimitModal ? (
+      {showLimitModal && !historyMode ? (
         <div className="border-b border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
           <p className="font-medium">Limite de 30 mensagens suas nesta sessão</p>
           <p className="mt-1 text-brand-800">Inicie uma nova sessão para continuar.</p>
@@ -145,19 +244,30 @@ export function ChatWorkspace() {
       ) : null}
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {messages.map((m) => (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            onQuickReply={handleSend}
-            onConfirmDraft={confirmDraft}
-            onCancelDraft={cancelDraft}
-          />
-        ))}
-        {streaming && draftAssistant ? (
-          <div className="mr-auto max-w-[85%] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-            {draftAssistant}
-          </div>
+        {showSkeleton ? <MessageSkeleton /> : null}
+        {!showSkeleton
+          ? messages.map((m) => (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                onQuickReply={historyMode ? undefined : handleSend}
+                onConfirmDraft={historyMode ? undefined : confirmDraft}
+                onCancelDraft={historyMode ? undefined : cancelDraft}
+                onEditDraft={historyMode ? undefined : handleEditDraft}
+              />
+            ))
+          : null}
+        {streaming ? (
+          <>
+            <p className="text-xs text-gray-500" role="status">
+              Nexo está digitando…
+            </p>
+            {draftAssistant ? (
+              <div className="mr-auto max-w-[85%] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                {draftAssistant}
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
 
@@ -171,11 +281,15 @@ export function ChatWorkspace() {
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Digite sua mensagem…"
+          placeholder="Escreva para o Nexo…"
           disabled={composerDisabled}
         />
-        <Button type="submit" disabled={composerDisabled || !input.trim()}>
-          Enviar
+        <Button
+          type="submit"
+          disabled={composerDisabled || !input.trim()}
+          aria-busy={streaming}
+        >
+          {streaming ? "Enviando…" : "Enviar"}
         </Button>
       </form>
     </div>

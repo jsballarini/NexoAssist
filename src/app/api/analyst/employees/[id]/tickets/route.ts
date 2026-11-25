@@ -15,7 +15,15 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { id: employeeId } = await params;
   const ticketClient = createTicketServiceClient();
+  const RESOLVED_WINDOW_DAYS = 90;
   const items = await ticketClient.listOpen(employeeId);
+  const resolved = await ticketClient.listRecentResolved(
+    employeeId,
+    RESOLVED_WINDOW_DAYS,
+  );
 
-  return NextResponse.json({ items });
+  return NextResponse.json({
+    items,
+    summary: { open: items.length, closed: resolved.length },
+  });
 }

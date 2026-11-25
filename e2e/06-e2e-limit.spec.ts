@@ -6,10 +6,10 @@ test("E2E-LIMIT: 30 msgs → nova sessão", async ({ page }) => {
   await loginAsAna(page);
   await freshChatSession(page);
   await expect(page.locator('[data-conversation-state="with_agent"]')).toBeVisible();
-  await expect(page.getByPlaceholder("Digite sua mensagem…")).toBeEnabled();
+  await expect(page.getByPlaceholder("Escreva para o Nexo…")).toBeEnabled();
 
   for (let i = 0; i < 30; i++) {
-    const composer = page.getByPlaceholder("Digite sua mensagem…");
+    const composer = page.getByPlaceholder("Escreva para o Nexo…");
     await expect(composer).toBeEnabled({ timeout: 120_000 });
     await composer.fill(`Olá ${i}`);
     await Promise.all([

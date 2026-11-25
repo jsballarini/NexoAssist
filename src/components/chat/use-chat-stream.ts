@@ -13,6 +13,7 @@ export type ChatMessage = {
     actions: string[];
     confidence: number;
     rulesFired: string[];
+    evidence?: { type: string; id: string; excerpt?: string }[];
   };
 };
 
@@ -25,24 +26,31 @@ export function useChatStream(
   onAfterTurn?: () => void,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [draftAssistant, setDraftAssistant] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
-  const loadHistory = useCallback(async (convId: string) => {
-    const res = await fetch(`/api/conversations/${convId}/messages`);
-    if (!res.ok) return;
-    const data = (await res.json()) as { items: ChatMessage[] };
-    setMessages(
-      data.items.map((m) => ({
-        id: m.id,
-        role: m.role as ChatMessage["role"],
-        content: m.content,
-        uiBlocks: m.uiBlocks,
-        trace: m.trace ?? undefined,
-      })),
-    );
+  const loadHistory = useCallback(async (convId: string): Promise<boolean> => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/conversations/${convId}/messages`);
+      if (!res.ok) return false;
+      const data = (await res.json()) as { items: ChatMessage[] };
+      setMessages(
+        data.items.map((m) => ({
+          id: m.id,
+          role: m.role as ChatMessage["role"],
+          content: m.content,
+          uiBlocks: m.uiBlocks,
+          trace: m.trace ?? undefined,
+        })),
+      );
+      return true;
+    } finally {
+      setHistoryLoading(false);
+    }
   }, []);
 
   const sendMessage = useCallback(
@@ -237,6 +245,7 @@ export function useChatStream(
 
   return {
     messages,
+    historyLoading,
     streaming,
     draftAssistant,
     toast,

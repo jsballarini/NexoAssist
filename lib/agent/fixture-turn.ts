@@ -186,10 +186,27 @@ async function matchPlan(
       },
       confidence: 78,
       uiBlocks: (data) => {
-        const tickets = data[0] as { id: string; title: string; statusLabel: string; slaBreached: boolean }[];
+        const tickets = data[0] as {
+          id: string;
+          title: string;
+          statusLabel: string;
+          slaBreached: boolean;
+          openedAt?: string;
+        }[];
         const breached = tickets.find((t) => t.slaBreached);
         const blocks: UiBlock[] = [{ type: "confidence", value: 78 }];
-        if (breached) {
+        if (tickets.length >= 2) {
+          blocks.unshift({
+            type: "ticket_selector",
+            tickets: tickets.map((t) => ({
+              ticketId: t.id,
+              title: t.title,
+              statusLabel: t.statusLabel,
+              openedAt: t.openedAt ?? new Date().toISOString(),
+              slaBreached: t.slaBreached,
+            })),
+          });
+        } else if (breached) {
           blocks.unshift({
             type: "ticket_card",
             ticketId: breached.id,

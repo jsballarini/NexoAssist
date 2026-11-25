@@ -1,8 +1,8 @@
 # Gaps — baseline `docs/desafio` vs entrega
 
 **Data:** 2026-11-24  
-**Versão app:** `0.5.0-m5`  
-**Pacote docs:** `0.3.0`  
+**Versão app:** `0.7.0-m7`  
+**Pacote docs:** `0.3.2`  
 **Baseline:** [PRD v5](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf) + protótipo [nexo/nexo.pen](nexo/nexo.pen)
 
 Legenda de severidade: **C** crítico · **M** médio · **B** baixo.
@@ -18,10 +18,10 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 | Grupo | Abertos | Aceitos | Resolvidos (doc) |
 |-------|---------|---------|------------------|
 | A Documental | 0 | 0 | 5 |
-| B AC charter | 2 | 0 | 2 |
+| B AC charter | 0 | 0 | 4 |
 | C Escopo E-xx | 2 | 1 (E-02 Mastra) | 0 |
-| D UI employee | 10 | 0 | 0 |
-| E UI analista | 6 | 0 | 0 |
+| D UI employee | 1 | 0 | 9 |
+| E UI analista | 0 | 1 | 5 |
 | F PRD implícito | 3 | 1 (TailAdmin) | 0 |
 | G Operação | 1 | 0 | 1 |
 
@@ -45,7 +45,7 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 |----|-----|-----|--------|-------|
 | G-AC-01 | B | Runbook VPS | **resolvido** | [deploy-vps.md](../desenvolvimento/deploy-vps.md) |
 | G-AC-05 | M | README sem seção trade-offs do agent | **resolvido** | README § Decisões e trade-offs |
-| G-AC-07 | M | Fidelidade protótipo parcial | **aberto** | Ver grupos D e E |
+| G-AC-07 | M | Fidelidade protótipo parcial | **resolvido** | Etapas 01–02 (employee + console analista vs PNG) |
 | G-AC-08 | C | As Built incompleto | **resolvido** | [04-03](../04-registro-mudanca/04-03-as-built.md) §1–2, §4, §6–7 |
 
 ---
@@ -64,16 +64,16 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 
 | ID | Sev | Gap | Status |
 |----|-----|-----|--------|
-| G-UI-E01 | M | Status line (chips de `actions[]` acima da bolha) | aberto |
-| G-UI-E02 | M | Trace expand: confidence, evidence, JSON técnico | aberto |
-| G-UI-E03 | B | Placeholder “Escreva para o Nexo…” | aberto |
-| G-UI-E04 | M | Histórico de sessões / dropdown | aberto |
-| G-UI-E05 | B | Indicador “digitando…” explícito | aberto |
-| G-UI-E06 | M | Rascunho: ação Editar | aberto |
-| G-UI-E07 | M | Seletor multi-ticket clicável | aberto |
+| G-UI-E01 | M | Status line (chips de `actions[]` acima da bolha) | **resolvido** |
+| G-UI-E02 | M | Trace expand: confidence, evidence, JSON técnico | **resolvido** |
+| G-UI-E03 | B | Placeholder “Escreva para o Nexo…” | **resolvido** |
+| G-UI-E04 | M | Histórico de sessões / dropdown | **resolvido** |
+| G-UI-E05 | B | Indicador “digitando…” explícito | **resolvido** |
+| G-UI-E06 | M | Rascunho: ação Editar | **resolvido** |
+| G-UI-E07 | M | Seletor multi-ticket clicável | **resolvido** |
 | G-UI-E08 | M | Composer ativo em `awaiting_analyst` (spec) vs bloqueado (app) | aberto |
-| G-UI-E09 | B | Perfil: “Alterada há N dias” | aberto |
-| G-UI-E10 | B | Skeletons/spinners consistentes | aberto |
+| G-UI-E09 | B | Perfil: “Alterada há N dias” | **resolvido** |
+| G-UI-E10 | B | Skeletons/spinners consistentes | **resolvido** |
 
 ---
 
@@ -81,11 +81,11 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 
 | ID | Sev | Gap | Status |
 |----|-----|-----|--------|
-| G-UI-A01 | M | Busca textual na fila | aberto |
-| G-UI-A02 | M | Avatar, badge não lida, hora no item | aberto |
-| G-UI-A03 | M | Header: área, ticket vinculado, badge modo | aberto |
-| G-UI-A04 | M | Painel: contagem abertos/fechados, destaque conversa | aberto |
-| G-UI-A05 | M | Trace completo (latência, rawToolCalls, evidence) | aberto |
+| G-UI-A01 | M | Busca textual na fila | **resolvido** |
+| G-UI-A02 | M | Avatar, badge não lida, hora no item | **resolvido** |
+| G-UI-A03 | M | Header: área, ticket vinculado, badge modo | **resolvido** |
+| G-UI-A04 | M | Painel: contagem abertos/fechados, destaque conversa | **resolvido** |
+| G-UI-A05 | M | Trace completo (latência, rawToolCalls, evidence) | **resolvido** |
 | G-UI-A06 | B | Rota `/conversas/[id]` vs SPA única | **aceito** |
 
 ---

@@ -26,9 +26,18 @@ export default async function PerfilPage() {
             <p className="mt-1 text-xs text-gray-500">Gerenciado pela TI</p>
           </div>
         </dl>
-        <Button type="button" variant="outline" className="mt-8" disabled>
-          Redefinir senha
-        </Button>
+        <div className="mt-8">
+          <Button type="button" variant="outline" disabled>
+            Redefinir senha
+          </Button>
+          <p
+            className="mt-2 text-xs text-gray-500"
+            data-profile-password-age
+          >
+            Senha alterada há{" "}
+            {process.env.NEXT_PUBLIC_PROFILE_PASSWORD_AGE_DAYS ?? "90"} dias
+          </p>
+        </div>
       </div>
     </main>
   );

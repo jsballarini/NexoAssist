@@ -159,26 +159,68 @@ export async function getThreadMessages(
   };
 }
 
+function durationSincePreviousUser(
+  messages: { role: string; createdAt: Date }[],
+  assistantIndex: number,
+): number | undefined {
+  for (let j = assistantIndex - 1; j >= 0; j--) {
+    if (messages[j].role === "user") {
+      return (
+        messages[assistantIndex].createdAt.getTime() -
+        messages[j].createdAt.getTime()
+      );
+    }
+  }
+  return undefined;
+}
+
 export async function listConversationTraces(conversationId: string) {
-  const rows = await prisma.message.findMany({
-    where: { conversationId, role: "assistant" },
+  const messages = await prisma.message.findMany({
+    where: { conversationId },
     orderBy: { createdAt: "asc" },
     include: { agentTrace: true },
   });
 
-  return rows
-    .filter((m) => m.agentTrace)
-    .map((m) => ({
+  const results: {
+    messageId: string;
+    createdAt: string;
+    content: string;
+    trace: {
+      understanding: string;
+      actions: string[];
+      confidence: number;
+      rulesFired: string[];
+      evidence: { type: string; id: string; excerpt?: string }[];
+      rawToolCalls: string[] | null;
+      durationMs?: number;
+    };
+  }[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role !== "assistant" || !m.agentTrace) continue;
+
+    const durationMs = durationSincePreviousUser(messages, i);
+
+    results.push({
       messageId: m.id,
       createdAt: m.createdAt.toISOString(),
       content: m.content,
       trace: {
-        understanding: m.agentTrace!.understanding,
-        actions: m.agentTrace!.actions as string[],
-        confidence: m.agentTrace!.confidence,
-        rulesFired: m.agentTrace!.rulesFired as string[],
-        evidence: m.agentTrace!.evidence as { type: string; id: string; excerpt?: string }[],
-        rawToolCalls: m.agentTrace!.rawToolCalls as string[] | null,
+        understanding: m.agentTrace.understanding,
+        actions: m.agentTrace.actions as string[],
+        confidence: m.agentTrace.confidence,
+        rulesFired: m.agentTrace.rulesFired as string[],
+        evidence: m.agentTrace.evidence as {
+          type: string;
+          id: string;
+          excerpt?: string;
+        }[],
+        rawToolCalls: m.agentTrace.rawToolCalls as string[] | null,
+        ...(durationMs !== undefined ? { durationMs } : {}),
       },
-    }));
+    });
+  }
+
+  return results;
 }

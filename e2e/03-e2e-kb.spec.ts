@@ -4,7 +4,7 @@ import { loginAsAna } from "./auth";
 test("E2E-KB: VPN 809 sem card draft", async ({ page }) => {
   await loginAsAna(page);
 
-  await page.getByPlaceholder("Digite sua mensagem…").fill("VPN erro 809 windows 10");
+  await page.getByPlaceholder("Escreva para o Nexo…").fill("VPN erro 809 windows 10");
   await page.getByRole("button", { name: "Enviar" }).click();
 
   await expect(

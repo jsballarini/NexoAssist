@@ -109,6 +109,35 @@ export async function getConversationForUser(conversationId: string, userId: str
   });
 }
 
+export async function listClosedSessions(userId: string, limit = 30) {
+  const conversations = await prisma.conversation.findMany({
+    where: { userId, state: "closed" },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    include: {
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true, role: true },
+      },
+    },
+  });
+
+  return conversations.map((c) => {
+    const last = c.messages[0];
+    const preview = last
+      ? last.content.slice(0, 120)
+      : `Sessão ${c.sessionSequence}`;
+    return {
+      conversationId: c.id,
+      sessionSequence: c.sessionSequence,
+      state: c.state,
+      updatedAt: c.updatedAt.toISOString(),
+      preview,
+    };
+  });
+}
+
 export async function ensureConversationState(
   conversationId: string,
   state: ConversationState,

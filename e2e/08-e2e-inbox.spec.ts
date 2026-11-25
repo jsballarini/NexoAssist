@@ -10,5 +10,5 @@ test("E2E-INBOX: fila mostra Ana e Carla", async ({ page }) => {
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button").filter({ hasText: "Carla Mendes" }).first()).toBeVisible();
   await page.getByRole("button", { name: "Precisam de você" }).click();
-  await expect(page.getByText("awaiting_analyst").first()).toBeVisible();
+  await expect(page.locator('[data-inbox-state="awaiting_analyst"]').first()).toBeVisible();
 });

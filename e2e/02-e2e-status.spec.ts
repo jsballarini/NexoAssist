@@ -4,7 +4,7 @@ import { loginAsAna } from "./auth";
 test("E2E-STATUS: consulta INC-20311 vencido visível", async ({ page }) => {
   await loginAsAna(page);
 
-  await page.getByPlaceholder("Digite sua mensagem…").fill("Qual o status dos meus chamados?");
+  await page.getByPlaceholder("Escreva para o Nexo…").fill("Qual o status dos meus chamados?");
   await page.getByRole("button", { name: "Enviar" }).click();
 
   await expect(

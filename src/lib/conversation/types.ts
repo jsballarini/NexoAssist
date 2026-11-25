@@ -17,7 +17,17 @@ export type UiBlock =
     }
   | { type: "kb_chips"; articles: { slug: string; title: string }[] }
   | { type: "confidence"; value: number }
-  | { type: "quick_replies"; options: string[] };
+  | { type: "quick_replies"; options: string[] }
+  | {
+      type: "ticket_selector";
+      tickets: {
+        ticketId: string;
+        title: string;
+        statusLabel: string;
+        openedAt: string;
+        slaBreached?: boolean;
+      }[];
+    };
 
 export class SessionMessageLimitError extends Error {
   readonly code = "SESSION_MESSAGE_LIMIT";

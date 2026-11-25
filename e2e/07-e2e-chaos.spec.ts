@@ -4,7 +4,7 @@ import { loginAsAna } from "./auth";
 test("E2E-CHAOS: outage 503 → UI mensagem", async ({ page }) => {
   await loginAsAna(page);
 
-  await page.getByPlaceholder("Digite sua mensagem…").fill(
+  await page.getByPlaceholder("Escreva para o Nexo…").fill(
     "VPN não conecta no Windows 11, reunião às 14h",
   );
   await page.getByRole("button", { name: "Enviar" }).click();

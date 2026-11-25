@@ -6,10 +6,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+## [0.7.0-m7] - 2026-11-24
+
+### Adicionado
+
+- **Console analista (Etapa 02):** busca na fila, avatar/iniciais, badge não lida, hora relativa; header com área (`department`), ticket vinculado e badge de modo; painel `Abertos/Fechados` e destaque “Desta conversa”; trace expandido (confidence, actions, evidence, rawToolCalls, `durationMs`).
+- **API aditiva:** inbox `employeeDepartment`, `linkedTicketId`; `GET .../employees/:id/tickets` com `summary`; traces com duração derivada (1 query + cálculo in-memory).
+
 ### Documentação
 
-- `docs/desafio/README.md` e `GAPS.md` (baseline PRD vs `0.5.0-m5`).
-- Links corrigidos ao PDF/`.pen`; as-built e runbook [deploy-vps](docs/desenvolvimento/deploy-vps.md).
+- Docs **0.3.2**; `G-UI-A01`–`A05` e **`G-AC-07`** → resolvido em [GAPS.md](docs/desafio/GAPS.md).
+
+## [0.6.0-m6] - 2026-11-24
+
+### Adicionado
+
+- **UI employee (Etapa 01):** chips de status (`action-labels`), trace com evidence e JSON técnico, placeholder “Escreva para o Nexo…”, histórico `GET /api/conversations/sessions` (somente leitura), indicador “Nexo está digitando…”, **Editar** em `draft_card`, `ticket_selector` em fixtures e UI, skeleton/spinner de envio.
+- **`UiBlock`:** variante `ticket_selector`.
+- **Perfil:** texto “Senha alterada há N dias” (`data-profile-password-age`).
+
+### Documentação
+
+- Docs **0.3.1** — 02-07 sessions; GAPS E01–E07, E09, E10 → resolvido (E08 e G-AC-07 parcial permanecem abertos).
 
 ## [0.5.0-m5] - 2026-11-24
 

@@ -4,6 +4,7 @@ import type { ConversationState } from "@prisma/client";
 
 const INBOX_STATES: ConversationState[] = ["awaiting_analyst", "with_analyst"];
 
+import { extractLinkedTicketId } from "./linked-ticket";
 import type { InboxItem } from "./types";
 export type { InboxItem } from "./types";
 
@@ -12,7 +13,7 @@ export async function listInboxItems(): Promise<InboxItem[]> {
     where: { state: { in: INBOX_STATES } },
     orderBy: { updatedAt: "desc" },
     include: {
-      user: { select: { id: true, name: true } },
+      user: { select: { id: true, name: true, department: true } },
       assignedAnalyst: { select: { id: true, name: true } },
       messages: {
         orderBy: { createdAt: "desc" },
@@ -28,7 +29,9 @@ export async function listInboxItems(): Promise<InboxItem[]> {
     const lastAssistant = await prisma.message.findFirst({
       where: { conversationId: conv.id, role: "assistant" },
       orderBy: { createdAt: "desc" },
-      include: { agentTrace: { select: { confidence: true } } },
+      include: {
+        agentTrace: { select: { confidence: true, evidence: true } },
+      },
     });
 
     const previewMsg = conv.messages[0];
@@ -44,10 +47,17 @@ export async function listInboxItems(): Promise<InboxItem[]> {
     });
     const unreadCount = Math.max(0, userMsgCount - Math.floor(analystMsgCount / 2));
 
+    const linkedTicketId = extractLinkedTicketId(
+      lastAssistant?.agentTrace?.evidence,
+      lastAssistant?.content ?? preview,
+    );
+
     items.push({
       conversationId: conv.id,
       employeeId: conv.user.id,
       employeeName: conv.user.name,
+      employeeDepartment: conv.user.department,
+      linkedTicketId,
       preview,
       state: conv.state,
       unreadCount,

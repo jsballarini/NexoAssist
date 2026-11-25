@@ -12,9 +12,9 @@ test("E2E-ASSUME: Rafael assume e envia mensagem", async ({ page }) => {
     ),
     page.getByRole("button", { name: "Assumir" }).click(),
   ]);
-  await expect(page.locator("[data-takeover-bar]").getByText("with_analyst")).toBeVisible({
-    timeout: 10_000,
-  });
+  await expect(
+    page.locator('[data-takeover-bar][data-thread-state="with_analyst"]'),
+  ).toBeVisible({ timeout: 10_000 });
   const composer = page.getByPlaceholder("Mensagem ao funcionário…");
   await expect(composer).toBeEnabled();
   await composer.fill("Olá Ana, sou o Rafael do suporte.");
