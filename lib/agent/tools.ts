@@ -1,5 +1,6 @@
 import type { AgentAdapters, AgentUserContext } from "./adapters";
-import type { DraftOperation, DraftPayloadBody } from "./draft-types";
+import { createDraftGuarded, pickPayload } from "./draft-guard";
+import { toToolFailure } from "./tool-results";
 
 export type ToolName =
   | "list_open_tickets"
@@ -12,26 +13,7 @@ export type ToolName =
   | "cancel_draft"
   | "transfer_to_analyst";
 
-function pickPayload(args: Record<string, unknown>): DraftPayloadBody {
-  return {
-    targetTicketId:
-      typeof args.targetTicketId === "string"
-        ? args.targetTicketId
-        : typeof args.ticketId === "string"
-          ? args.ticketId
-          : typeof args.publicId === "string"
-            ? args.publicId
-            : undefined,
-    type: args.type as DraftPayloadBody["type"],
-    category: args.category as DraftPayloadBody["category"],
-    title: typeof args.title === "string" ? args.title : undefined,
-    description: typeof args.description === "string" ? args.description : undefined,
-    priority: args.priority as DraftPayloadBody["priority"],
-    affectedScope: args.affectedScope as DraftPayloadBody["affectedScope"],
-  };
-}
-
-export async function runTool(
+async function execute(
   name: ToolName,
   args: Record<string, unknown>,
   ctx: AgentUserContext,
@@ -53,15 +35,16 @@ export async function runTool(
     case "search_kb":
       return adapters.kbSearch(String(args.query ?? ""));
     case "create_draft":
-      return adapters.ticketClient.createDraft(
-        ctx.userId,
-        (args.operation as DraftOperation) ?? "create",
-        pickPayload(args),
+      return createDraftGuarded(
+        (args.operation as "create" | "update" | "reopen") ?? "create",
+        args,
+        ctx,
+        adapters,
       );
     case "update_ticket":
-      return adapters.ticketClient.createDraft(ctx.userId, "update", pickPayload(args));
+      return createDraftGuarded("update", args, ctx, adapters);
     case "reopen_ticket":
-      return adapters.ticketClient.createDraft(ctx.userId, "reopen", pickPayload(args));
+      return createDraftGuarded("reopen", args, ctx, adapters);
     case "cancel_draft":
       await adapters.ticketClient.cancelDraft(ctx.userId, String(args.draftId ?? ""));
       return { cancelled: true, draftId: args.draftId };
@@ -75,3 +58,24 @@ export async function runTool(
       throw new Error(`Tool not implemented: ${name}`);
   }
 }
+
+/**
+ * Executa uma ferramenta. Falhas esperadas do ticket-service (indisponibilidade, chamado de
+ * terceiros, rascunho inválido) viram resultados estruturados; o resto propaga.
+ */
+export async function runTool(
+  name: ToolName,
+  args: Record<string, unknown>,
+  ctx: AgentUserContext,
+  adapters: AgentAdapters,
+): Promise<unknown> {
+  try {
+    return await execute(name, args, ctx, adapters);
+  } catch (error) {
+    const failure = toToolFailure(error);
+    if (failure) return failure;
+    throw error;
+  }
+}
+
+export { pickPayload };

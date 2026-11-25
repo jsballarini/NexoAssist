@@ -36,12 +36,33 @@ describe("createMastraTools", () => {
     await tool(tools, "list_open_tickets").execute({ requesterId: "outro-usuario" });
     await tool(tools, "create_draft").execute({
       operation: "create",
-      title: "Teste",
+      type: "INC",
+      category: "hardware",
+      title: "Teclado quebrado na estação",
+      description: "Teclas não respondem",
+      impact: "only_me",
+      urgency: "has_workaround",
       requesterId: "outro-usuario",
     });
 
-    expect(calls.listOpen).toEqual([FAKE_CTX.userId]);
+    expect(new Set(calls.listOpen)).toEqual(new Set([FAKE_CTX.userId]));
     expect(calls.createDraft[0].requesterId).toBe(FAKE_CTX.userId);
+    expect(calls.createDraft[0].payload).toMatchObject({ priority: "medium", affectedScope: "only_me" });
+  });
+
+  it("create_draft incompleto devolve DRAFT_INCOMPLETE sem criar", async () => {
+    const { adapters, calls } = createFakeAdapters();
+    const tools = createMastraTools(FAKE_CTX, adapters);
+    const result = (await tool(tools, "create_draft").execute({
+      operation: "create",
+      title: "Mouse parou de funcionar",
+    })) as { ok: boolean; code: string; missing: string[] };
+
+    expect(result).toMatchObject({ ok: false, code: "DRAFT_INCOMPLETE" });
+    expect(result.missing).toEqual(
+      expect.arrayContaining(["description", "type", "category", "affectedScope", "urgency"]),
+    );
+    expect(calls.createDraft).toHaveLength(0);
   });
 
   it("transfere usando a conversa do contexto", async () => {
@@ -53,14 +74,11 @@ describe("createMastraTools", () => {
     ]);
   });
 
-  it("devolve { error } sem vazar existência de chamado de terceiros", async () => {
+  it("devolve { found: false } sem vazar existência de chamado de terceiros", async () => {
     const { adapters } = createFakeAdapters();
     const tools = createMastraTools(FAKE_CTX, adapters);
-    const result = (await tool(tools, "get_ticket").execute({ publicId: "INC-404" })) as {
-      error: string;
-    };
-    expect(result.error).toMatch(/não encontrado/i);
-    expect(result.error).not.toMatch(/forbidden|owner/i);
+    const result = await tool(tools, "get_ticket").execute({ publicId: "INC-404" });
+    expect(result).toEqual({ found: false, messageKey: "ticket_not_in_your_list" });
   });
 });
 

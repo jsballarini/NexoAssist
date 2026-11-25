@@ -1,5 +1,6 @@
 import type { RuleId } from "../../src/lib/domain/rules";
 import { isFailedResult, type ToolCallRecord } from "./tool-records";
+import { isNotFoundResult, isToolFailure } from "./tool-results";
 
 type Flags = {
   outOfScope?: boolean;
@@ -11,6 +12,25 @@ function hasBreachedTicket(result: unknown): boolean {
   return items.some(
     (i) => !!i && typeof i === "object" && (i as { slaBreached?: unknown }).slaBreached === true,
   );
+}
+
+/** Regra de uma falha estruturada de ferramenta (TOOL_FAILED se desconhecida). */
+function ruleForFailure(result: unknown): RuleId {
+  if (isToolFailure(result)) {
+    switch (result.code) {
+      case "TICKET_LEGACY_UNAVAILABLE":
+        return "TICKET_LEGACY_UNAVAILABLE";
+      case "DRAFT_INCOMPLETE":
+      case "DRAFT_INVALID":
+        return "DRAFT_INCOMPLETE";
+      case "DUPLICATE_CANDIDATE":
+        return "DUPLICATE_CANDIDATE";
+      default:
+        return "TOOL_FAILED";
+    }
+  }
+  if (isNotFoundResult(result)) return "TICKET_LOOKUP";
+  return "TOOL_FAILED";
 }
 
 /**
@@ -26,8 +46,12 @@ export function collectRulesFromToolResults(calls: ToolCallRecord[], flags: Flag
   if (!flags.decisionReported) rules.add("NO_DECISION_REPORTED");
 
   for (const call of calls) {
-    if (call.error || isFailedResult(call.result)) {
+    if (call.error) {
       rules.add("TOOL_FAILED");
+      continue;
+    }
+    if (isFailedResult(call.result)) {
+      rules.add(ruleForFailure(call.result));
       continue;
     }
     switch (call.name) {

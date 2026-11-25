@@ -1,4 +1,5 @@
 import { runAgentTurn } from "../../lib/agent";
+import type { TurnContext } from "../../lib/agent/turn-context";
 import { createAgentAdapters } from "@/lib/conversation/adapters-factory";
 import { getOrCreateActive } from "@/lib/conversation/service";
 
@@ -40,7 +41,11 @@ export async function runEvalTurnAsUser(
   );
 }
 
-export async function runEvalTurn(content: string, userId?: string) {
+export async function runEvalTurn(
+  content: string,
+  userId?: string,
+  turnContext?: TurnContext,
+) {
   const uid = userId ?? (await findAnaUserId());
   const { prisma } = await import("@/lib/db");
   const conv = await getOrCreateActive(uid);
@@ -58,5 +63,6 @@ export async function runEvalTurn(content: string, userId?: string) {
       conversationId: conv.id,
     },
     adapters,
+    turnContext,
   );
 }

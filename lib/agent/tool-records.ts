@@ -1,4 +1,5 @@
 import type { ToolName } from "./tools";
+import { isNotFoundResult, isToolFailure } from "./tool-results";
 
 /** Chamada de ferramenta observada em um turno (nome, argumentos, resultado ou erro). */
 export type ToolCallRecord = {
@@ -10,8 +11,12 @@ export type ToolCallRecord = {
 
 export const TOOL_ERROR_KEY = "error";
 
-/** Resultado de ferramenta que sinaliza falha tratada (execute devolve `{ error }`). */
-export function isFailedResult(result: unknown): result is { error: string } {
+/**
+ * Resultado que sinaliza falha: `{ error }` (erro inesperado), `{ ok: false, code }`
+ * (falha esperada e estruturada) ou `{ found: false }` (chamado fora da lista do usuário).
+ */
+export function isFailedResult(result: unknown): boolean {
+  if (isToolFailure(result) || isNotFoundResult(result)) return true;
   return (
     !!result &&
     typeof result === "object" &&

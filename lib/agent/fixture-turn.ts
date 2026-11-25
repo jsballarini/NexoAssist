@@ -11,14 +11,32 @@ import type { DraftSummary } from "./draft-types";
 import { collectEvidence } from "./evidence";
 import { EMPTY_TURN_CONTEXT, type TurnContext } from "./turn-context";
 import { runTool, type ToolName } from "./tools";
+import { isToolFailure } from "./tool-results";
+import type { ImpactScope, Urgency } from "../../src/lib/domain/priority";
 
 const TICKET_ID_PATTERN = /\b(?:inc|req)-\d+\b/i;
 const SAP_RESET_PATTERN = /sap.*(bloquead|senha)|senha.*sap/;
-const SCOPE_REPLIES: { pattern: RegExp; scope: "only_me" | "team" | "organization" }[] = [
+const VPN_WIN11_PATTERN = /vpn.*(win\s*11|windows\s*11)|win\s*11.*vpn|windows\s*11.*vpn/;
+const SCOPE_QUESTION = "quem é afetado";
+const SCOPE_QUICK_REPLIES = ["Só eu", "Equipe (5–20)", "Organização inteira"];
+const DUPLICATE_QUICK_REPLIES = ["Sim, é o mesmo problema", "Não, é um problema novo"];
+const SCOPE_REPLIES: { pattern: RegExp; scope: ImpactScope }[] = [
   { pattern: /^(só eu|somente eu|apenas eu)/, scope: "only_me" },
   { pattern: /^equipe/, scope: "team" },
   { pattern: /^organiza/, scope: "organization" },
 ];
+const PRIORITY_PT: Record<DraftSummary["priority"], string> = {
+  critical: "crítica",
+  high: "alta",
+  medium: "média",
+  low: "baixa",
+};
+const URGENCY_FROM_PRIORITY: Record<DraftSummary["priority"], Urgency> = {
+  critical: "blocking_work",
+  high: "same_day_commitment",
+  medium: "has_workaround",
+  low: "low",
+};
 
 function extractTicketId(input: string): string | undefined {
   return input.match(TICKET_ID_PATTERN)?.[0].toUpperCase();
@@ -26,6 +44,91 @@ function extractTicketId(input: string): string | undefined {
 
 function scopeFromReply(lower: string) {
   return SCOPE_REPLIES.find((r) => r.pattern.test(lower))?.scope;
+}
+
+/** Retorna o rascunho só quando o resultado da tool é de fato um `DraftSummary`. */
+function asDraft(value: unknown): DraftSummary | undefined {
+  return value && typeof value === "object" && "draftId" in value ? (value as DraftSummary) : undefined;
+}
+
+/** Texto da pergunta de duplicidade quando a tool devolve `DUPLICATE_CANDIDATE`. */
+function duplicateReply(value: unknown): string | undefined {
+  if (!isToolFailure(value) || value.code !== "DUPLICATE_CANDIDATE") return undefined;
+  const verb = value.duplicate.operation === "reopen" ? "resolvido recentemente" : "aberto";
+  return `Você já tem o chamado ${value.duplicate.targetTicketId} (${verb}) parecido com este. É o mesmo problema?`;
+}
+
+function draftBlocks(d: DraftSummary | undefined, confidence: number): UiBlock[] {
+  const blocks: UiBlock[] = [];
+  if (d) {
+    blocks.push({
+      type: "draft_card",
+      draftId: d.draftId,
+      operation: d.operation,
+      title: d.title,
+      priority: d.priority,
+      dueAtPreview: d.dueAtPreview,
+      affectedScope: d.affectedScope,
+    });
+  }
+  blocks.push({ type: "confidence", value: confidence });
+  return blocks;
+}
+
+/**
+ * Procura, no histórico, a pergunta "quem é afetado?" do fixture e devolve a mensagem
+ * original do funcionário que a motivou (fluxo VPN em dois passos).
+ */
+function findScopeQuestionOrigin(turnContext: TurnContext): string | undefined {
+  const { messages } = turnContext;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const m = messages[i];
+    if (m.role === "assistant" && m.content.toLowerCase().includes(SCOPE_QUESTION)) {
+      return messages
+        .slice(0, i)
+        .reverse()
+        .find((x) => x.role === "user")?.content;
+    }
+  }
+  return undefined;
+}
+
+function buildVpnDraftPlan(originalMessage: string, scope: ImpactScope): Plan {
+  return {
+    tools: [
+      {
+        name: "create_draft",
+        args: {
+          operation: "create",
+          type: "INC",
+          category: "rede_vpn",
+          title: "VPN Windows 11 — reunião 14h",
+          description: originalMessage,
+          impact: scope,
+          urgency: "same_day_commitment",
+        },
+      },
+    ],
+    understanding: "Novo problema VPN Windows 11 com compromisso no mesmo dia; abrangência informada.",
+    reply: (data) => {
+      const d = asDraft(data[0]);
+      if (d) {
+        return `Preparei o rascunho ${d.draftId} (prioridade ${PRIORITY_PT[d.priority]}). SLA previsto: ${new Date(d.dueAtPreview).toLocaleString("pt-BR")}. Confirme no card abaixo.`;
+      }
+      return duplicateReply(data[0]) ?? "Não consegui preparar o rascunho agora. Posso chamar um analista.";
+    },
+    confidence: 78,
+    uiBlocks: (data) => {
+      const d = asDraft(data[0]);
+      if (d) return draftBlocks(d, 78);
+      return duplicateReply(data[0])
+        ? [
+            { type: "confidence", value: 78 },
+            { type: "quick_replies", options: DUPLICATE_QUICK_REPLIES },
+          ]
+        : [{ type: "confidence", value: 78 }];
+    },
+  };
 }
 
 type Plan = {
@@ -46,7 +149,7 @@ async function matchPlan(
   const lower = input.toLowerCase().trim();
 
   const pending = turnContext.pendingDraft;
-  const replyScope = pending ? scopeFromReply(lower) : undefined;
+  const replyScope = scopeFromReply(lower);
   if (pending && replyScope) {
     return {
       tools: [
@@ -56,39 +159,33 @@ async function matchPlan(
           args: {
             operation: pending.operation,
             targetTicketId: pending.targetTicketId,
+            type: "INC",
+            category: /vpn/i.test(pending.title) ? "rede_vpn" : "outros",
             title: pending.title,
             description: pending.title,
-            priority: pending.priority,
-            affectedScope: replyScope,
+            impact: replyScope,
+            urgency: URGENCY_FROM_PRIORITY[pending.priority],
+            confirmedNew: true,
           },
         },
       ],
       understanding: "Funcionário informou quem é afetado; refazendo o rascunho pendente.",
       reply: (data) => {
-        const d = data[1] as DraftSummary | undefined;
+        const d = asDraft(data[1]);
         return d
           ? `Atualizei o rascunho (${d.draftId}) com a abrangência informada. Confirme no card abaixo.`
           : "Atualizei o rascunho com a abrangência informada.";
       },
       confidence: 80,
-      uiBlocks: (data) => {
-        const d = data[1] as DraftSummary | undefined;
-        const blocks: UiBlock[] = [];
-        if (d) {
-          blocks.push({
-            type: "draft_card",
-            draftId: d.draftId,
-            operation: d.operation,
-            title: d.title,
-            priority: d.priority,
-            dueAtPreview: d.dueAtPreview,
-            affectedScope: d.affectedScope,
-          });
-        }
-        blocks.push({ type: "confidence", value: 80 });
-        return blocks;
-      },
+      uiBlocks: (data) => draftBlocks(asDraft(data[1]), 80),
     };
+  }
+
+  if (!pending && replyScope) {
+    const origin = findScopeQuestionOrigin(turnContext);
+    if (origin && VPN_WIN11_PATTERN.test(origin.toLowerCase())) {
+      return buildVpnDraftPlan(origin, replyScope);
+    }
   }
 
   const scope = classifyOutOfScope(input);
@@ -117,59 +214,26 @@ async function matchPlan(
     };
   }
 
-  if (/vpn.*(win\s*11|windows\s*11)|win\s*11.*vpn|windows\s*11.*vpn/.test(lower)) {
+  if (VPN_WIN11_PATTERN.test(lower)) {
+    const scopeInMessage = /organiza/.test(lower)
+      ? "organization"
+      : /equipe|\btime\b/.test(lower)
+        ? "team"
+        : /só eu|somente eu|apenas eu/.test(lower)
+          ? "only_me"
+          : undefined;
+    if (scopeInMessage) return buildVpnDraftPlan(input, scopeInMessage);
     return {
-      tools: [
-        {
-          name: "create_draft",
-          args: {
-            operation: "create",
-            type: "INC",
-            category: "rede_vpn",
-            title: "VPN Windows 11 — reunião 14h",
-            description: input,
-            priority: "high",
-            affectedScope:
-              /organiza/.test(lower)
-                ? "organization"
-                : /equipe|time/.test(lower)
-                  ? "team"
-                  : /só eu|somente eu|only_me/.test(lower)
-                    ? "only_me"
-                    : undefined,
-          },
-        },
-      ],
-      understanding: "Novo problema VPN Windows 11 com prioridade alta.",
-      reply: (data) => {
-        const d = data[0] as DraftSummary;
-        if (!d) return "Preparando rascunho de chamado VPN.";
-        return `Preparei o rascunho ${d.draftId} (prioridade alta). SLA previsto: ${new Date(d.dueAtPreview).toLocaleString("pt-BR")}. Confirme no card abaixo.`;
-      },
+      tools: [],
+      understanding:
+        "Problema de VPN no Windows 11 com reunião hoje; falta saber quem é afetado antes de abrir o chamado.",
+      reply:
+        "Entendi: VPN sem conectar no Windows 11 com reunião hoje. Para definir a prioridade, quem é afetado?",
       confidence: 76,
-      uiBlocks: (data) => {
-        const d = data[0] as DraftSummary;
-        const blocks: UiBlock[] = [];
-        if (d) {
-          blocks.push({
-            type: "draft_card",
-            draftId: d.draftId,
-            operation: d.operation,
-            title: d.title,
-            priority: d.priority,
-            dueAtPreview: d.dueAtPreview,
-            affectedScope: d.affectedScope,
-          });
-        }
-        if (!/só eu|equipe|organiza/i.test(lower)) {
-          blocks.push({
-            type: "quick_replies",
-            options: ["Só eu", "Equipe (5–20)", "Organização inteira"],
-          });
-        }
-        blocks.push({ type: "confidence", value: 76 });
-        return blocks;
-      },
+      uiBlocks: () => [
+        { type: "confidence", value: 76 },
+        { type: "quick_replies", options: SCOPE_QUICK_REPLIES },
+      ],
     };
   }
 
@@ -194,8 +258,12 @@ async function matchPlan(
             operation: dedup.operation,
             targetTicketId: target,
             title: "Notebook lento após atualização do Windows",
+            type: "INC",
+            category: "hardware",
             description: input,
-            priority: "medium",
+            impact: "only_me",
+            urgency: "has_workaround",
+            confirmedNew: true,
           },
         },
       ],
@@ -204,27 +272,13 @@ async function matchPlan(
           ? "Mesmo problema no chamado aberto — atualizar em vez de criar novo."
           : "Complemento de chamado existente.",
       reply: (data) => {
-        const d = data[1] as DraftSummary;
+        const d = asDraft(data[1]);
         return d
           ? `Vou atualizar o chamado ${target} via rascunho ${d.draftId}. Confirme para aplicar as alterações.`
           : `Atualização proposta para ${target}.`;
       },
       confidence: 82,
-      uiBlocks: (data) => {
-        const d = data[1] as DraftSummary;
-        if (!d) return [{ type: "confidence", value: 82 }];
-        return [
-          {
-            type: "draft_card",
-            draftId: d.draftId,
-            operation: d.operation,
-            title: d.title,
-            priority: d.priority,
-            dueAtPreview: d.dueAtPreview,
-          },
-          { type: "confidence", value: 82 },
-        ];
-      },
+      uiBlocks: (data) => draftBlocks(asDraft(data[1]), 82),
     };
   }
 
@@ -387,14 +441,14 @@ async function matchPlan(
             category: "email",
             title: "E-mail corporativo indisponível — impacto organizacional",
             description: input,
-            priority: "critical",
-            affectedScope: "organization",
+            impact: "organization",
+            urgency: "blocking_work",
           },
         },
       ],
       understanding: "Incidente crítico de e-mail corporativo em larga escala.",
       reply: (data) => {
-        const d = data[0] as DraftSummary;
+        const d = asDraft(data[0]);
         return d
           ? `Abri rascunho crítico ${d.draftId} para indisponibilidade de e-mail. Confirme para abrir o chamado.`
           : "Preparando chamado crítico de e-mail.";
@@ -432,7 +486,9 @@ async function matchPlan(
                 category: "acesso",
                 title: "Senha SAP bloqueada",
                 description: input,
-                priority: "high",
+                impact: "only_me",
+                urgency: "blocking_work",
+                confirmedNew: true,
               },
             },
       ],
@@ -440,7 +496,7 @@ async function matchPlan(
         ? `Reabertura de ${target} (resolvido há poucos dias).`
         : "Nenhum chamado SAP recente; novo chamado de acesso.",
       reply: (data) => {
-        const d = data[1] as DraftSummary | undefined;
+        const d = asDraft(data[1]);
         if (!d) return "Preparando proposta para o problema de senha SAP.";
         return target
           ? `Vou reabrir ${target} via rascunho ${d.draftId}. Confirme para aplicar.`

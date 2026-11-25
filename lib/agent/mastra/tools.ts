@@ -7,12 +7,27 @@ import { runTool, type ToolName } from "../tools";
 export const REPORT_DECISION_TOOL = "report_decision";
 
 const MAX_ERROR_CHARS = 200;
-const NOT_FOUND_MESSAGE = "Chamado não encontrado entre os chamados do funcionário.";
 
 const ticketTypeSchema = z.enum(["INC", "REQ"]);
 const categorySchema = z.enum(["acesso", "rede_vpn", "hardware", "software", "email", "outros"]);
 const prioritySchema = z.enum(["critical", "high", "medium", "low"]);
 const scopeSchema = z.enum(["only_me", "team", "organization"]);
+const urgencySchema = z.enum(["low", "has_workaround", "same_day_commitment", "blocking_work"]);
+
+const createDraftFields = {
+  type: ticketTypeSchema.optional().describe("INC (algo parou) ou REQ (pedido)."),
+  category: categorySchema.optional(),
+  title: z.string().min(3).max(120).optional(),
+  description: z.string().min(3).max(2000).optional(),
+  impact: scopeSchema
+    .optional()
+    .describe("Quem é afetado: only_me, team ou organization. Pergunte ao funcionário."),
+  urgency: urgencySchema
+    .optional()
+    .describe(
+      "low (sem pressa), has_workaround (atrapalha mas há alternativa), same_day_commitment (compromisso hoje) ou blocking_work (trabalho parado).",
+    ),
+};
 
 const draftFields = {
   targetTicketId: z.string().optional().describe("ID público do chamado (INC-/REQ-) para update ou reopen."),
@@ -27,12 +42,6 @@ const draftFields = {
 /** Converte erros de ferramenta em resultado seguro para o modelo (sem vazar existência de terceiros). */
 export function describeToolError(error: unknown): string {
   const name = error instanceof Error ? error.name : "Error";
-  if (name === "TicketForbiddenError" || name === "TicketNotFoundError") {
-    return NOT_FOUND_MESSAGE;
-  }
-  if (name === "TicketLegacyUnavailableError") {
-    return "Sistema de chamados temporariamente indisponível.";
-  }
   const message = error instanceof Error ? error.message : "Falha desconhecida";
   return `${name}: ${message}`.slice(0, MAX_ERROR_CHARS);
 }
@@ -81,10 +90,19 @@ export function createMastraTools(ctx: AgentUserContext, adapters: AgentAdapters
       id: "create_draft",
       description:
         "Cria um RASCUNHO de chamado para o funcionário confirmar (nunca cria o chamado direto). " +
-        "operation: create, update (complementar chamado aberto) ou reopen (resolvido há até 7 dias).",
+        "operation: create, update (complementar chamado aberto) ou reopen (resolvido há até 7 dias). " +
+        "Em create, a prioridade é calculada por impact × urgency (não envie priority) e todos os campos " +
+        "(title, description, type, category, impact, urgency) são obrigatórios: se faltar algum, a ferramenta " +
+        "devolve DRAFT_INCOMPLETE; se houver chamado parecido, devolve DUPLICATE_CANDIDATE.",
       inputSchema: z.object({
         operation: z.enum(["create", "update", "reopen"]).default("create"),
-        ...draftFields,
+        targetTicketId: z.string().optional().describe("ID público do chamado para update ou reopen."),
+        priority: prioritySchema.optional().describe("Só para update/reopen; ignorada em create."),
+        confirmedNew: z
+          .boolean()
+          .optional()
+          .describe("true quando o funcionário confirmou que NÃO é o mesmo problema de um chamado existente."),
+        ...createDraftFields,
       }),
       execute: exec("create_draft"),
     }),

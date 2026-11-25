@@ -11,11 +11,12 @@ export type FakeCalls = {
   listOpen: string[];
   createDraft: { requesterId: string; operation: string; payload: unknown }[];
   transfer: { conversationId: string; reason: string }[];
+  ticketTransfer: { requesterId: string; publicId: string; reason: string }[];
 };
 
 /** Adapters em memória que registram com qual `requesterId` cada chamada foi feita. */
 export function createFakeAdapters(): { adapters: AgentAdapters; calls: FakeCalls } {
-  const calls: FakeCalls = { listOpen: [], createDraft: [], transfer: [] };
+  const calls: FakeCalls = { listOpen: [], createDraft: [], transfer: [], ticketTransfer: [] };
   const adapters: AgentAdapters = {
     ticketClient: {
       async listOpen(requesterId) {
@@ -52,6 +53,10 @@ export function createFakeAdapters(): { adapters: AgentAdapters; calls: FakeCall
         };
       },
       async cancelDraft() {},
+      async transfer(requesterId, publicId, reason) {
+        calls.ticketTransfer.push({ requesterId, publicId, reason });
+        return { id: publicId, status: "waiting_analyst", transferReason: reason } as never;
+      },
     },
     kbSearch: async () => [],
     conversationClient: {

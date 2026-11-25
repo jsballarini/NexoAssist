@@ -19,6 +19,8 @@ export type TicketClient = {
     payload: DraftPayloadBody,
   ): Promise<DraftSummary>;
   cancelDraft(requesterId: string, draftId: string): Promise<void>;
+  /** Marca o chamado como aguardando analista e registra o motivo. */
+  transfer(requesterId: string, publicId: string, reason: string): Promise<TicketDetail>;
 };
 
 export type ConversationClient = {
