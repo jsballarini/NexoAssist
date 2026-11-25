@@ -24,6 +24,8 @@ export async function GET(_request: Request, { params }: Params) {
 
   return NextResponse.json({
     items,
+    /** Resolvidos na janela (aditivo; alimenta "Outros chamados" no painel). */
+    resolved,
     summary: { open: items.length, closed: resolved.length },
   });
 }

@@ -1,16 +1,20 @@
 const ACTION_LABELS: Record<string, string> = {
-  list_open_tickets: "Consultou seus chamados",
-  get_ticket: "Consultou chamado",
-  search_kb: "Pesquisou na central de ajuda",
-  create_draft: "Preparou rascunho de chamado",
-  update_ticket: "Atualizou chamado",
-  reopen_ticket: "Preparou reabertura",
-  cancel_draft: "Cancelou rascunho",
-  transfer_to_analyst: "Encaminhou ao analista",
-  list_recent_resolved: "Listou chamados resolvidos",
+  list_open_tickets: "consultou seus chamados",
+  get_ticket: "consultou o chamado",
+  search_kb: "buscou na central de ajuda",
+  create_draft: "montou o rascunho",
+  update_ticket: "preparou a atualização",
+  reopen_ticket: "preparou a reabertura",
+  cancel_draft: "cancelou o rascunho",
+  transfer_to_analyst: "chamou um atendente",
+  list_recent_resolved: "consultou chamados resolvidos",
 };
 
-/** Rótulos PT para chips da status line (G-UI-E01). */
+/**
+ * Rótulos PT da status line (G-UI-E01), no estilo do protótipo ("✓ consultou
+ * seus chamados"). Passos repetidos no mesmo turno aparecem uma única vez.
+ */
 export function actionLabels(actions: string[]): string[] {
-  return actions.map((a) => ACTION_LABELS[a] ?? a.replace(/_/g, " "));
+  const labels = actions.map((a) => ACTION_LABELS[a] ?? a.replace(/_/g, " "));
+  return [...new Set(labels)];
 }

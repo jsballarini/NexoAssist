@@ -22,6 +22,13 @@ export type ChatMessage = {
   };
 };
 
+/** Metadados da conversa devolvidos junto com o histórico de mensagens. */
+export type ConversationMessageMeta = {
+  state: "with_agent" | "awaiting_analyst" | "with_analyst" | "closed";
+  messageCount: number;
+  messageLimit: number;
+};
+
 type SendResult =
   | { ok: true }
   | { ok: false; code?: string; message: string; status: number };
@@ -41,21 +48,14 @@ export function useChatStream(
     async (
       convId: string,
       options?: { silent?: boolean },
-    ): Promise<{
-      ok: boolean;
-      meta?: {
-        state: "with_agent" | "awaiting_analyst" | "with_analyst" | "closed";
-        messageCount: number;
-        messageLimit: number;
-      };
-    }> => {
+    ): Promise<{ ok: boolean; meta?: ConversationMessageMeta }> => {
       if (!options?.silent) setHistoryLoading(true);
       try {
         const res = await fetch(`/api/conversations/${convId}/messages`);
         if (!res.ok) return { ok: false };
         const data = (await res.json()) as {
           items: ChatMessage[];
-          meta?: { state: string; messageCount: number; messageLimit: number };
+          meta?: ConversationMessageMeta;
         };
         setMessages(
           data.items.map((m) => ({
@@ -88,25 +88,7 @@ export function useChatStream(
       setStreaming(true);
       setDraftAssistant("");
 
-      let convId = conversationId;
-      if (!convId) {
-        const activeRes = await fetch("/api/conversations/active");
-        if (!activeRes.ok) {
-          setStreaming(false);
-          return {
-            ok: false,
-            message: "Conversa indisponível",
-            status: activeRes.status,
-          };
-        }
-        const activeJson = (await activeRes.json()) as { conversationId?: string };
-        convId = activeJson.conversationId ?? null;
-      }
-      if (!convId) {
-        setStreaming(false);
-        return { ok: false, message: "Conversa indisponível", status: 0 };
-      }
-
+      const convId = conversationId;
       esRef.current?.close();
       const es = new EventSource(
         `/api/conversations/${convId}/stream?turnId=${encodeURIComponent(turnId)}`,

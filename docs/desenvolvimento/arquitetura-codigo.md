@@ -93,11 +93,12 @@ Variáveis espelhadas no job `e2e`: `AGENT_EVAL_FIXTURES=true`, `TICKET_CHAOS_RA
 |--------|-----|
 | Unit/INT | Vitest (SLA, RBAC, boundary, analyst poll/409, …) |
 | Evals | **EVAL-01**–**EVAL-15** |
-| E2E | `e2e-01` … `e2e-13` (Playwright em **127.0.0.1:3099**) |
+| E2E | `e2e-01` … `e2e-16` (Playwright em **127.0.0.1:3099**) |
 
 ## Playwright (E2E)
 
-- `playwright.config.ts`: `workers: 1`, `CHAOS_ENDPOINT_ENABLED=true` no webServer.
+- `playwright.config.ts`: `workers: 1`, `NEXT_DIST_DIR=.next-playwright` no `webServer`, `CHAOS_ENDPOINT_ENABLED=true`.
+- Dev manual (`npm run dev`) usa `.next` na porta 3000 — não executar E2E e dev em paralelo.
 - `resetAnalystTransferSeeds` + `/api/dev/reset-analyst-seeds` antes dos specs analista.
 
 Lacunas vs protótipo: [GAPS.md](../desafio/GAPS.md).

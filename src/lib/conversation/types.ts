@@ -5,6 +5,13 @@ export type UiBlock =
       title: string;
       statusLabel: string;
       slaBreached: boolean;
+      /** Campos de detalhe (presentes quando o card vem de `get_ticket`). */
+      status?: string;
+      description?: string;
+      categoryLabel?: string;
+      priority?: string;
+      openedAt?: string;
+      lastUpdatedAt?: string;
     }
   | {
       type: "draft_card";
@@ -29,6 +36,7 @@ export type UiBlock =
         statusLabel: string;
         openedAt: string;
         slaBreached?: boolean;
+        status?: string;
       }[];
     };
 

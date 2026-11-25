@@ -6,6 +6,21 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Paridade de UI (Desafio):** tokens `nexo.*` e mapeamento em `docs/anexos/protótipo-mapeamento.md`; login split, shell do funcionário, chat (coluna ~600px, status line, cards de rascunho/chamado/seletor), perfil em dois cartões, console do analista (fila, thread, takeover, painel Chamados | Trace).
+- **Componentes compartilhados:** `ticket-tone`, `BareInput`, formatadores de data, `inbox-view` (chips Para você / Com o agent / Minhas).
+- **Backend analista:** linha de sistema ao assumir (`{analista} assumiu · agent pausado`), `authorName` no GET de mensagens, `resolved` no painel de chamados, `categoryLabel` em `TicketSummary`, vínculo INC via `handoffSummary`.
+- **Testes:** `inbox-view`, `format-date-tone`, `analyst-linked-ticket`; E2E ajustados aos novos rótulos.
+
+### Corrigido
+
+- **Dois `next dev` na mesma pasta:** Playwright usa `NEXT_DIST_DIR=.next-playwright` para não corromper `.next` do `npm run dev` (:3000) — evita `ENOENT` em `app-paths-manifest.json` e 500 nas rotas de API.
+
+### Alterado
+
+- Rótulos da status line do chat em minúsculas (estilo protótipo); contador “N/30 mensagens nesta sessão”.
+
 ## [0.8.0-m8.3] - 2026-11-25
 
 ### Adicionado
@@ -22,7 +37,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 - As quick replies da consulta de status derivam dos chamados reais; com chamado vencido a política acrescenta "Chamar um analista" (G2-UI-03).
 - Fixture: rascunhos de SAP e de e-mail crítico agora emitem o card de rascunho; o reconhecimento de status, atualização, e-mail e pedido de analista aceita mais formulações. O pedido de analista ("me passa para um humano", "transfere para um atendente") também é reconhecido na política de transferência.
-- O filtro "Com o agent" do console virou "Revisão sugerida"; a fila lista transferências antes das revisões.
+- O filtro de revisão no console voltou ao rótulo **"Com o agent"** (PNG), mantendo a lógica `needsReview`; a fila lista transferências antes das revisões.
 - `vitest.config.ts`: `AGENT_EVAL_FIXTURES` segue `EVAL_USE_LLM` (apenas para `test:evals:llm`).
 
 ### Observações

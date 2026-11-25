@@ -1,8 +1,8 @@
 # Status da implementação
 
-**Atualizado:** 2026-11-24  
-**Versão app:** `0.5.0-m5`  
-**Registro formal as-built:** [04-03-as-built.md](../04-registro-mudanca/04-03-as-built.md) (M5).
+**Atualizado:** 2026-11-25  
+**Versão app:** `0.8.0-m8.3` (+ alterações documentadas em [CHANGELOG.md](../../CHANGELOG.md) § Unreleased)  
+**Registro formal as-built:** [04-03-as-built.md](../04-registro-mudanca/04-03-as-built.md).
 
 ## Marcos M1–M5
 
@@ -14,24 +14,34 @@
 | **M4** | F4 | Drafts, transfer, limite 30, OUT_OF_SCOPE | **Concluído** | EVAL-06–10, E2E-OPEN/TRANSFER/LIMIT/CHAOS, INT-TICKET-01/02 | [fase-04](../execucao/fase-04-mutacoes-regras.md) |
 | **M5** | F5 | Console analista, evals 11–15, CI/hardening | **Concluído** | EVAL-11–15, E2E 01–13, INT-POLL/409/TICKET-03 | [fase-05](../execucao/fase-05-console-analista-hardening.md) |
 
-## Checklist M5 (Definition of Done)
+## Entrega visual (Desafio — nov/2025)
+
+| Área | Estado | Referência |
+|------|--------|------------|
+| Tokens `nexo.*` + login split | Feito | [protótipo-mapeamento](../anexos/protótipo-mapeamento.md) |
+| Shell funcionário + chat Telas 1–2 | Feito | `chat-workspace`, `message-bubble`, `draft-card`, `ticket-blocks` |
+| Meu perfil | Feito | `/perfil` |
+| Console analista Telas Conversas 1–2 | Feito | `analyst-workspace` e submódulos |
+| Linha de sistema ao assumir + painel chamados/trace | Feito | `assumeConversation`, `tickets-panel` |
+
+Chips do console (rótulos do PNG): **Todas | Para você | Com o agent | Minhas**. A lógica de `needsReview` permanece; o rótulo antigo “Revisão sugerida” foi trocado por **Com o agent** na UI.
+
+## Checklist de qualidade (atual)
 
 | Item | Status |
 |------|--------|
-| `src/lib/analyst` + APIs ETag/409/423 | Feito |
-| UI console + POST mensagem analista | Feito |
-| Seeds transfer + restore E2E | Feito |
-| EVAL-11–15 + INT analista/ticket reopen | Feito |
-| E2E 13/13 + regressão employee | Feito |
-| GHA CI, rate limit, `.env.example` | Feito |
-| `npm run test` + `test:evals` + `test:e2e` + `build` | Feito (2026-11-24) |
+| Unit Vitest (incl. `inbox-view`, formatação, UI blocks) | Feito |
+| E2E Playwright **16** specs (`e2e-01` … `e2e-16`) | Feito |
+| Cache E2E isolado (`.next-playwright`) | Feito |
+| `npm run build` | Manter antes de release |
+| GHA CI | Ver workflow na raiz |
 
-## Estabilidade E2E (0.5.0-m5)
+## Estabilidade E2E
 
-- Servidor dedicado `127.0.0.1:3099`, `CHAOS_ENDPOINT_ENABLED=true` no `webServer`.
-- Reset de fila analista antes de specs 08–13 (`resetAnalystTransferSeeds`).
-- Nova sessão do funcionário fecha **todas** as conversas em estados ativos (não só a mais recente).
+- Servidor dedicado `127.0.0.1:3099`, `NEXT_DIST_DIR=.next-playwright` no `playwright.config.ts`.
+- **Não** rodar `npm run dev` (:3000) em paralelo com a suite (corrupção de `.next` — ver [ambiente-e-comandos.md](ambiente-e-comandos.md)).
+- `CHAOS_ENDPOINT_ENABLED=true` no `webServer`; `resetAnalystTransferSeeds` antes dos specs do analista.
 
 ## Próximo passo
 
-**M6** — as-built final e deploy documentado (ver [04-03](../04-registro-mudanca/04-03-as-built.md)).
+Versão tag **`0.8.0-m8.4`** (ou consolidar *Unreleased* no CHANGELOG) + as-built M6 conforme [04-03](../04-registro-mudanca/04-03-as-built.md).

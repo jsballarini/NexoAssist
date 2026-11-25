@@ -124,6 +124,7 @@ O `webServer` **não** aplica migrations nem seed automaticamente.
 | Config | Valor |
 |--------|--------|
 | Host / porta | `127.0.0.1:3099` (não compete com `npm run dev` na 3000) |
+| Build cache | `NEXT_DIST_DIR=.next-playwright` (definido no `playwright.config.ts`) |
 | `workers` | `1` |
 | `webServer.timeout` | `180s` (compilação inicial do Next) |
 | Env do servidor de teste | `.env` carregado + `AGENT_EVAL_FIXTURES=true`, `TICKET_CHAOS_RATE=0` |
@@ -145,4 +146,9 @@ Variáveis opcionais: `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_REUS
 
 - Não defina `CI=1` esperando 3000 se outro processo já ocupa a porta. Use o fluxo padrão (`test:e2e` → 3099) ou `PLAYWRIGHT_PORT` explícito.
 
-Suite **7 specs** (`e2e-01` … `e2e-07`); manter `workers: 1`. **E2E-CHAOS** usa mock HTTP — não exige `TICKET_CHAOS_RATE=1` no `webServer`.
+**`ENOENT` em `.next/server/...` ou 500 em `/api/*` com `npm run dev` aberto**
+
+- Dois `next dev` na mesma máquina (ex.: :3000 manual + :3099 do Playwright) **compartilhavam** `.next` e podiam corromper o cache. O E2E agora grava em `.next-playwright` (`NEXT_DIST_DIR` no `playwright.config.ts`).
+- Se o erro já apareceu: pare os dois servidores, apague `.next` e `.next-playwright`, suba de novo só o que for usar (`npm run dev` **ou** `npm run test:e2e`, não os dois em paralelo durante testes pesados).
+
+Suite **16 specs** (`e2e-01` … `e2e-16`); manter `workers: 1`. **E2E-CHAOS** usa mock HTTP — não exige `TICKET_CHAOS_RATE=1` no `webServer`.

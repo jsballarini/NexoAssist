@@ -6,6 +6,7 @@ test("E2E-LOGIN: Ana acessa atendimento e perfil", async ({ page }) => {
 
   await page.goto("/perfil");
   const main = page.getByRole("main");
-  await expect(main.getByText("Ana Souza")).toBeVisible();
-  await expect(main.getByText("ana.souza@nexo.com.br")).toBeVisible();
+  await expect(main.getByText("Ana Souza", { exact: true })).toBeVisible();
+  await expect(main.getByText("ana.souza@nexo.com.br", { exact: true })).toBeVisible();
+  await expect(main.locator("[data-profile-password-age]")).toContainText("Alterada há");
 });

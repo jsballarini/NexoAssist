@@ -2,7 +2,7 @@
 
 Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseline de produto: [docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf). Lacunas documentadas: [docs/desafio/GAPS.md](docs/desafio/GAPS.md).
 
-**Versão da aplicação:** `0.8.0-m8.3` (M8.3: UI de rascunho, console do analista e entrega PRD) — ver [CHANGELOG.md](CHANGELOG.md).
+**Versão da aplicação:** `0.8.0-m8.3` — ver [CHANGELOG.md](CHANGELOG.md) (*Unreleased*: paridade visual com o Desafio + cache E2E isolado).
 
 **Sumário da entrega:** [Como o agent decide](#como-o-agent-decide) · [Garantia da qualidade](#garantia-da-qualidade) · [Escolha do modelo](#escolha-do-modelo) · [Decisões e trade-offs](#decisões-e-trade-offs) · [O que faria com mais tempo](#o-que-faria-com-mais-tempo) · [Custo por conversa](#custo-por-conversa)
 
@@ -12,7 +12,8 @@ Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseli
 |------|----------|
 | [docs/README.md](docs/README.md) | Especificação (pacote docs **0.3.6**) |
 | [docs/desafio/](docs/desafio/README.md) | PRD, protótipo, GAPS |
-| [docs/desenvolvimento/](docs/desenvolvimento/README.md) | Status M1–M5, arquitetura |
+| [docs/desenvolvimento/](docs/desenvolvimento/README.md) | Status, arquitetura, ambiente |
+| [docs/anexos/protótipo-mapeamento.md](docs/anexos/protótipo-mapeamento.md) | Frames Pencil/PNG → rotas e componentes |
 | [docs/execucao/](docs/execucao/README.md) | Guias F1–F5 |
 
 ## Início rápido
@@ -37,7 +38,7 @@ Pré-requisito para E2E: banco migrado e seed (`npx prisma migrate deploy` e `np
 
 ```bash
 npm run prepare:e2e   # 1ª vez: baixa Chromium (senão E2E falha)
-npm run test:e2e      # sobe `next dev` em 127.0.0.1:3099 (não reutiliza :3000)
+npm run test:e2e      # sobe `next dev` em 127.0.0.1:3099 (cache `.next-playwright`)
 npm run test          # Vitest + Playwright
 npm run test:unit     # Vitest completo
 npm run test:evals    # EVAL-01..15 + variações de frase (determinístico, fixtures)
@@ -45,13 +46,16 @@ npm run test:evals:llm # opcional: mesma matriz com o modelo real (exige OPENROU
 npm run build
 ```
 
-Dev manual (`npm run dev`) usa **http://localhost:3000**. Os E2E sobem um servidor dedicado em **127.0.0.1:3099** por padrão.
+Dev manual (`npm run dev`) usa **http://localhost:3000** e grava em **`.next`**. Os E2E sobem um servidor dedicado em **127.0.0.1:3099** com **`NEXT_DIST_DIR=.next-playwright`** — portas diferentes não bastam: dois `next dev` na mesma pasta corrompiam o cache se compartilharem `.next`.
 
 | Variável (opcional) | Default | Uso |
 |---------------------|---------|-----|
 | `PLAYWRIGHT_PORT` | `3099` | Porta do `webServer` do Playwright |
 | `PLAYWRIGHT_BASE_URL` | `http://127.0.0.1:3099` | `baseURL` dos testes |
 | `PLAYWRIGHT_REUSE_SERVER` | ausente | Defina `1` para reutilizar servidor já no ar (exige `PLAYWRIGHT_BASE_URL` coerente) |
+| `NEXT_DIST_DIR` | `.next` (dev) / `.next-playwright` (Playwright) | Definido automaticamente pelo `playwright.config.ts`; não sobrescreva no `.env` do dev manual |
+
+**Evite** rodar `npm run dev` e `npm run test:e2e` ao mesmo tempo. Se aparecer `ENOENT` em `.next/server/…` ou 500 em `/api/*`, pare os dois, apague `.next` e `.next-playwright` e suba só um servidor (detalhes em [ambiente-e-comandos.md](docs/desenvolvimento/ambiente-e-comandos.md)).
 
 ### OpenRouter (dev com LLM real)
 
@@ -189,7 +193,7 @@ Os evals determinísticos usam fixtures (`AGENT_EVAL_FIXTURES=true`) e rodam no 
 |------|---------|--------|
 | Agent runtime | Mastra (`@mastra/core`) em `lib/agent/mastra/` com tool calling sobre `lib/agent/tools.ts`; fixture só em CI | Decisão por entendimento do modelo, com histórico e rascunho pendente; evals/E2E determinísticos |
 | LLM default | `AGENT_EVAL_FIXTURES=true` sem API key | CI e onboarding sem custo |
-| E2E | Porta **3099** dedicada | Evita colisão com `next dev` :3000 |
+| E2E | Porta **3099** + **`.next-playwright`** | Isola cache do dev em :3000 |
 | Mutação tickets | Sempre via draft confirmado | Único writer `ticket-service`; dedup Anexo A |
 | Handoff | Employee bloqueado em `awaiting_analyst` e `with_analyst` (423) | CR [04-02 §0.3.3](docs/04-registro-mudanca/04-02-registro-mudancas.md); gap **G-UI-E08** `aceito` |
 | Rate limit | In-memory por IP em `/api/*` | Doc PRD; produção atrás de proxy real |
@@ -201,7 +205,8 @@ Trade-offs adicionais assumidos na entrega:
 | Tema | Decisão | Custo da escolha |
 |------|---------|------------------|
 | Edição de rascunho | `PATCH` direto nos seis campos, inclusive prioridade | O rascunho guardado não tem impacto/urgência; a prioridade editada vale como está e o SLA é recalculado a partir dela |
-| Fila do analista | Conversas ainda com o agent entram como "Revisão sugerida" quando a confiança do último turno é baixa | O analista só **vê**; assumir continua exigindo transferência (handoff explícito) |
+| Fila do analista | Chip **Com o agent** lista revisão sugerida (`needsReview`); **Para você** = `awaiting_analyst` | O analista só **assume** transferências; revisão baixa confiança é visibilidade, não fila de handoff |
+| UI funcionário/analista | Paridade com PNG + `nexo.pen` ([mapeamento](docs/anexos/protótipo-mapeamento.md)) | Alguns decorativos do Pencil (online/SLA fila) permanecem estáticos |
 | Evals | Matriz determinística no CI + execução com LLM sob demanda | O CI não detecta regressão de comportamento do modelo real |
 | Quick replies | Derivadas dos dados reais (chamado vencido, seletor); "Chamar um analista" vem da política | Menos atalhos fixos de FAQ no chat |
 | Deploy público | Adiado (`G2-QA-05`) | O avaliador roda localmente com `docker compose` ou no runbook de VPS |
@@ -211,7 +216,7 @@ Trade-offs adicionais assumidos na entrega:
 1. **Fora de escopo no caminho LLM:** combinar o classificador determinístico (`classifyOutOfScope`) com a decisão do modelo, para que `OUT_OF_SCOPE` seja sempre registrado (hoje só quando o modelo marca `outOfScope`).
 2. **Evals com LLM no CI noturno**, com orçamento fixo e série histórica de acurácia por intenção.
 3. **Impacto e urgência no rascunho:** guardar os dois campos e permitir editá-los no card, em vez de editar a prioridade diretamente.
-4. **Assunção direta de "Revisão sugerida":** permitir que o analista assuma uma conversa com baixa confiança sem esperar a transferência.
+4. **Assunção direta no chip Com o agent:** permitir assumir conversa com baixa confiança sem handoff explícito.
 5. **Streaming de tokens** no chat e **resumo da conversa** para sessões longas, reduzindo tokens de entrada.
 6. **Observabilidade:** métricas (latência, tokens, taxa de transferência) em um painel e alertas de custo.
 7. **Deploy público** com TLS e dados de demonstração isolados (`G2-QA-05`).

@@ -5,6 +5,7 @@ import type { ConversationState } from "@prisma/client";
 const INBOX_STATES: ConversationState[] = ["awaiting_analyst", "with_analyst"];
 
 import { getConfidenceTransferOffer } from "@/lib/domain/rules";
+import { parseHandoffSummary } from "../../../lib/agent/handoff-summary";
 import { extractLinkedTicketId } from "./linked-ticket";
 import { isReviewSuggested, LOW_CONFIDENCE_RULE } from "./review";
 import type { InboxItem } from "./types";
@@ -85,6 +86,7 @@ export async function listInboxItems(): Promise<InboxItem[]> {
     const linkedTicketId = extractLinkedTicketId(
       lastAssistant?.agentTrace?.evidence,
       lastAssistant?.content ?? preview,
+      isHandoff ? parseHandoffSummary(conv.handoffSummary)?.ticketIds : undefined,
     );
 
     items.push({
@@ -94,6 +96,7 @@ export async function listInboxItems(): Promise<InboxItem[]> {
       employeeDepartment: conv.user.department,
       linkedTicketId,
       preview,
+      previewRole: previewMsg?.role ?? null,
       state: conv.state,
       unreadCount,
       confidenceLast: lastAssistant?.agentTrace?.confidence ?? null,

@@ -25,8 +25,17 @@ function toToolNames(raw: unknown): string[] | null {
   return names;
 }
 
+/** Linha de sistema exibida aos dois lados quando um analista assume a conversa. */
+export function assumedSystemMessage(analystName: string): string {
+  return `${analystName} assumiu · agent pausado`;
+}
+
+/**
+ * Atribui a conversa ao analista. Na transição `awaiting_analyst → with_analyst`
+ * registra a linha de sistema "{analista} assumiu · agent pausado".
+ */
 export async function assumeConversation(analystId: string, conversationId: string) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const conv = await tx.conversation.findUnique({ where: { id: conversationId } });
     if (!conv) {
       throw new AnalystHandoffError("NOT_FOUND", "Conversa não encontrada", 404);
@@ -64,8 +73,19 @@ export async function assumeConversation(analystId: string, conversationId: stri
     return {
       state: updated.state,
       assignedAnalystId: updated.assignedAnalystId!,
+      transitioned: conv.state === "awaiting_analyst",
     };
   });
+
+  if (result.transitioned) {
+    const analyst = await prisma.user.findUnique({
+      where: { id: analystId },
+      select: { name: true },
+    });
+    await addSystemMessage(conversationId, assumedSystemMessage(analyst?.name ?? "Analista"));
+  }
+
+  return { state: result.state, assignedAnalystId: result.assignedAnalystId };
 }
 
 export async function returnToAgent(analystId: string, conversationId: string) {
@@ -152,11 +172,14 @@ export async function getThreadMessages(
   }
 
   const messages = await listMessages(conversationId, since);
+  const analystFallbackName = conv.assignedAnalyst?.name ?? null;
 
   return {
     messages: messages.map((m) => ({
       id: m.id,
       role: m.role,
+      authorName:
+        m.role === "analyst" ? (m.author?.name ?? analystFallbackName ?? "Analista") : undefined,
       content: m.content,
       uiBlocks: m.uiBlocks,
       createdAt: m.createdAt.toISOString(),

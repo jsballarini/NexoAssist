@@ -1,7 +1,7 @@
 # Artefatos originais do desafio (Beyond the Bytes)
 
-**Atualizado:** 2026-11-24  
-**Versão da aplicação de referência:** `0.5.0-m5`
+**Atualizado:** 2026-11-25  
+**Versão da aplicação de referência:** `0.8.0-m8.3` (paridade visual com PNG + `nexo.pen`)
 
 Esta pasta guarda a **baseline imutável** do desafio técnico (PDF + protótipo visual). A especificação operacional derivada está em [`../02-especificacao/`](../02-especificacao/02-02-especificacao-funcional.md). Lacunas entre baseline e código: [`GAPS.md`](GAPS.md) (vs especificação interna) e [`GAPS2.md`](GAPS2.md) (comportamento real vs PRD).
 

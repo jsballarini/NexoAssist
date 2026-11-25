@@ -30,6 +30,7 @@ export default defineConfig({
     reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     env: {
       ...process.env,
+      NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? ".next-playwright",
       DATABASE_URL:
         process.env.DATABASE_URL ??
         "postgresql://nexo:nexo@localhost:5432/nexo",

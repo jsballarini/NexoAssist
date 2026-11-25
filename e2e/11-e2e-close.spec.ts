@@ -4,7 +4,7 @@ import { loginAsRafael, resetAnalystTransferSeeds } from "./auth";
 test("E2E-CLOSE: encerrar conversa", async ({ page }) => {
   await resetAnalystTransferSeeds(page);
   await loginAsRafael(page);
-  await page.getByRole("button", { name: "Precisam de você" }).click();
+  await page.getByRole("button", { name: "Para você" }).click();
   await page.getByRole("button").filter({ hasText: "Carla Mendes" }).first().click();
   await Promise.all([
     page.waitForResponse(

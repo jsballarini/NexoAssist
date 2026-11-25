@@ -1,6 +1,9 @@
 "use client";
 
+import { CardField } from "@/components/tickets/card-field";
+import { ToneDot, priorityTone } from "@/components/tickets/ticket-tone";
 import { Button } from "@/components/ui/button";
+import { formatDeadline } from "@/lib/format/date";
 import {
   affectedScopeLabel,
   labelOr,
@@ -33,14 +36,11 @@ type Props = {
 const SELECT_CLASS =
   "h-9 w-full rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none";
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2 text-xs" data-draft-field={label}>
-      <dt className="w-24 shrink-0 text-gray-500">{label}</dt>
-      <dd className="min-w-0 whitespace-pre-wrap text-gray-800">{value}</dd>
-    </div>
-  );
-}
+const OPERATION_TITLE: Record<DraftBlock["operation"], string> = {
+  create: "Novo chamado",
+  update: "Atualização de chamado",
+  reopen: "Reabertura de chamado",
+};
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -78,13 +78,58 @@ function SelectField<T extends string>({
   );
 }
 
+function DraftHeader({ block, actionable }: { block: DraftBlock; actionable: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2 px-4 pt-3.5 text-xs text-nexo-ink-3">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span>{OPERATION_TITLE[block.operation]}</span>
+        <span aria-hidden>·</span>
+        <span data-draft-field="Tipo">{labelOr(ticketTypeLabel, block.ticketType)}</span>
+        <span aria-hidden>·</span>
+        <span>Rascunho {block.draftId}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5 font-medium text-nexo-warning-text">
+        <ToneDot tone={actionable ? "warning" : "neutral"} />
+        {actionable ? "Aguardando confirmação" : "Rascunho"}
+      </span>
+    </div>
+  );
+}
+
+/** Modo leitura do rascunho (Tela 1): título, descrição e grade Categoria/Prioridade/Afetados. */
+function DraftSummaryView({ block }: { block: DraftBlock }) {
+  return (
+    <div className="px-4 pb-4">
+      <p className="mt-2 font-display text-xl leading-snug font-medium text-nexo-ink">{block.title}</p>
+      <p className="mt-1.5 text-sm whitespace-pre-wrap text-nexo-ink-2" data-draft-field="Descrição">
+        {block.description?.trim() || "—"}
+      </p>
+      <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-nexo-rule pt-3">
+        <CardField label="Categoria" field="Categoria">
+          {labelOr(ticketCategoryLabel, block.category)}
+        </CardField>
+        <CardField label="Prioridade" field="Prioridade">
+          <ToneDot tone={priorityTone(block.priority)} />
+          {labelOr(ticketPriorityLabel, block.priority)}
+          <span className="text-xs font-normal text-nexo-ink-3" data-draft-field="SLA previsto">
+            · resposta até {formatDeadline(block.dueAtPreview)}
+          </span>
+        </CardField>
+        <CardField label="Afetados" field="Afetados">
+          {labelOr(affectedScopeLabel, block.affectedScope)}
+        </CardField>
+      </dl>
+    </div>
+  );
+}
+
 /** Card de rascunho: mostra os seis campos em PT-BR e permite edição inline antes de confirmar. */
 export function DraftCard({ block, onConfirm, onCancel, onSave }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<DraftForm>(() => formFromBlock(block));
-  const due = new Date(block.dueAtPreview).toLocaleString("pt-BR");
+  const actionable = Boolean(onConfirm && onCancel);
 
   function set<K extends keyof DraftForm>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -113,18 +158,14 @@ export function DraftCard({ block, onConfirm, onCancel, onSave }: Props) {
 
   return (
     <div
-      className="mt-2 rounded-lg border border-brand-200 bg-brand-50/50 p-3 text-sm"
+      className="overflow-hidden rounded-nexo-lg border border-nexo-rule bg-white text-sm shadow-theme-xs"
       data-draft-card
       data-draft-editing={editing ? "true" : "false"}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-gray-900">{block.draftId}</span>
-        <span className="text-xs uppercase text-gray-600">{block.operation}</span>
-      </div>
-
+      <DraftHeader block={block} actionable={actionable} />
       {editing ? (
         <form
-          className="mt-2 space-y-2"
+          className="space-y-2 px-4 pt-3 pb-4"
           onSubmit={(e) => {
             e.preventDefault();
             void save();
@@ -198,30 +239,25 @@ export function DraftCard({ block, onConfirm, onCancel, onSave }: Props) {
           </div>
         </form>
       ) : (
-        <>
-          <p className="mt-1 font-medium text-gray-800">{block.title}</p>
-          <dl className="mt-1 space-y-0.5">
-            <Row label="Tipo" value={labelOr(ticketTypeLabel, block.ticketType)} />
-            <Row label="Categoria" value={labelOr(ticketCategoryLabel, block.category)} />
-            <Row label="Descrição" value={block.description?.trim() || "—"} />
-            <Row label="Prioridade" value={labelOr(ticketPriorityLabel, block.priority)} />
-            <Row label="Afetados" value={labelOr(affectedScopeLabel, block.affectedScope)} />
-            <Row label="SLA previsto" value={due} />
-          </dl>
-        </>
+        <DraftSummaryView block={block} />
       )}
 
-      {onConfirm && onCancel && !editing ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={() => void onConfirm(block.draftId)}>
+      {actionable && onConfirm && onCancel && !editing ? (
+        <div className="flex flex-wrap gap-2 border-t border-nexo-rule bg-nexo-desk px-4 py-2.5">
+          <Button
+            type="button"
+            size="sm"
+            className="bg-nexo-cta hover:bg-brand-900"
+            onClick={() => void onConfirm(block.draftId)}
+          >
             Confirmar
           </Button>
           {onSave ? (
-            <Button type="button" size="sm" variant="outline" onClick={startEdit}>
+            <Button type="button" size="sm" variant="outline" className="bg-white" onClick={startEdit}>
               Editar
             </Button>
           ) : null}
-          <Button type="button" size="sm" variant="outline" onClick={() => void onCancel(block.draftId)}>
+          <Button type="button" size="sm" variant="ghost" onClick={() => void onCancel(block.draftId)}>
             Cancelar
           </Button>
         </div>

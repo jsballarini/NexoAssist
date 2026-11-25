@@ -8,6 +8,8 @@ export type InboxItem = {
   employeeDepartment?: string;
   linkedTicketId?: string;
   preview: string;
+  /** Papel do autor da última mensagem (`user`, `assistant`, `analyst`, `system`). */
+  previewRole: string | null;
   state: string;
   unreadCount: number;
   confidenceLast: number | null;

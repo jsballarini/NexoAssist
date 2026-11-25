@@ -6,7 +6,7 @@ const ANA_EMAIL = "ana.souza@nexo.com.br";
 test("E2E-RETURN: devolver → nota sistema", async ({ page }) => {
   await resetAnalystTransferSeeds(page);
   await loginAsRafael(page);
-  await page.getByRole("button", { name: "Precisam de você" }).click();
+  await page.getByRole("button", { name: "Para você" }).click();
   await page.getByRole("button").filter({ hasText: "Ana Souza" }).first().click();
   await Promise.all([
     page.waitForResponse(

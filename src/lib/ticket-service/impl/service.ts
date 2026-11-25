@@ -60,6 +60,9 @@ function toSummary(ticket: Ticket): TicketSummary {
     dueAt: ticket.dueAt.toISOString(),
     slaBreached: isBreached(ticket.dueAt, now, ticket.status),
     openedAt: ticket.openedAt.toISOString(),
+    category: ticket.category,
+    categoryLabel: ticketCategoryLabel[ticket.category],
+    resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
   };
 }
 
@@ -67,11 +70,8 @@ function toDetail(ticket: TicketWithUpdates): TicketDetail {
   return {
     ...toSummary(ticket),
     description: ticket.description,
-    category: ticket.category,
-    categoryLabel: ticketCategoryLabel[ticket.category],
     affectedScope: ticket.affectedScope,
     lastUpdatedAt: ticket.lastUpdatedAt.toISOString(),
-    resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
     transferReason: ticket.transferReason,
     updates: ticket.updates.map((u) => ({
       id: u.id,

@@ -10,6 +10,11 @@ type TicketLike = {
   statusLabel: string;
   slaBreached: boolean;
   openedAt?: string;
+  status?: string;
+  description?: string;
+  categoryLabel?: string;
+  priority?: string;
+  lastUpdatedAt?: string;
 };
 
 type KbHit = { slug: string; title: string };
@@ -30,6 +35,12 @@ function ticketCard(t: TicketLike): UiBlock {
     title: t.title,
     statusLabel: t.statusLabel,
     slaBreached: t.slaBreached,
+    status: t.status,
+    description: t.description,
+    categoryLabel: t.categoryLabel,
+    priority: t.priority,
+    openedAt: t.openedAt,
+    lastUpdatedAt: t.lastUpdatedAt,
   };
 }
 
@@ -92,6 +103,7 @@ function blocksForCall(call: ToolCallRecord): UiBlock[] {
               statusLabel: t.statusLabel,
               openedAt: t.openedAt ?? new Date().toISOString(),
               slaBreached: t.slaBreached,
+              status: t.status,
             })),
           },
         ];

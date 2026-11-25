@@ -275,11 +275,11 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ### G2-AN-02 · B · Filtro "Com o agent" sempre vazio — `resolvido`
 
-> **Resolução (0.8.0-m8.3):** O filtro foi renomeado para "Revisão sugerida" e usa `needsReview`; deixa de ficar vazio graças a G2-AN-01 e ao seed de demonstração.
+> **Resolução (0.8.0-m8.3):** `listInboxItems` alimenta revisão sugerida (`needsReview`). Na UI do Desafio o chip voltou ao rótulo **"Com o agent"** (paridade PNG); a lógica continua filtrando só conversas com baixa confiança, não todas em `with_agent`. Seed Gabriela Rocha. Testes: `E2E-REVIEW`.
 
-**Situação:** o filtro `with_agent` em `src/components/analyst/analyst-workspace.tsx` não encontra nada, porque o endpoint não retorna esse estado.
+**Situação (histórico):** o filtro antigo `with_agent` no workspace não encontrava nada porque o endpoint não retornava esse estado.
 
-**Aceite:** resolvido junto de G2-AN-01, ou filtro removido.
+**Aceite:** resolvido junto de G2-AN-01; rótulo visual documentado em [protótipo-mapeamento](../anexos/protótipo-mapeamento.md).
 
 ---
 
