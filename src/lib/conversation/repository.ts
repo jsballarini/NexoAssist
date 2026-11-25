@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { ConversationState, MessageRole } from "@prisma/client";
+import type { ConversationState, MessageRole, Prisma } from "@prisma/client";
 import type { AgentTracePayload, UiBlock } from "./types";
 
 const ACTIVE_EMPLOYEE_STATES: ConversationState[] = [
@@ -81,7 +81,9 @@ export async function addAssistantMessage(
         confidence: trace.confidence,
         rulesFired: trace.rulesFired,
         evidence: trace.evidence,
-        rawToolCalls: trace.actions,
+        rawToolCalls: (trace.rawToolCalls ?? undefined) as Prisma.InputJsonValue | undefined,
+        reasoning: trace.reasoning ?? "",
+        usage: (trace.usage ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
     await tx.conversation.update({

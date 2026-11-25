@@ -6,6 +6,24 @@ import {
 } from "@/lib/conversation/repository";
 import { ConversationAlreadyAssignedError, AnalystHandoffError } from "./errors";
 
+type TraceUsage = { promptTokens: number; completionTokens: number; latencyMs: number };
+
+/** `rawToolCalls` pode ser lista de nomes (legado) ou de objetos `{ name, ... }`. */
+function toToolNames(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const names = raw
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object" && "name" in item) {
+        const name = (item as { name?: unknown }).name;
+        return typeof name === "string" ? name : null;
+      }
+      return null;
+    })
+    .filter((n): n is string => n !== null);
+  return names;
+}
+
 export async function assumeConversation(analystId: string, conversationId: string) {
   return prisma.$transaction(async (tx) => {
     const conv = await tx.conversation.findUnique({ where: { id: conversationId } });
@@ -148,6 +166,8 @@ export async function getThreadMessages(
             confidence: m.agentTrace.confidence,
             rulesFired: m.agentTrace.rulesFired as string[],
             evidence: m.agentTrace.evidence as { type: string; id: string; excerpt?: string }[],
+            reasoning: m.agentTrace.reasoning,
+            usage: m.agentTrace.usage as TraceUsage | null,
           }
         : undefined,
     })),
@@ -192,6 +212,8 @@ export async function listConversationTraces(conversationId: string) {
       rulesFired: string[];
       evidence: { type: string; id: string; excerpt?: string }[];
       rawToolCalls: string[] | null;
+      reasoning: string;
+      usage: TraceUsage | null;
       durationMs?: number;
     };
   }[] = [];
@@ -216,7 +238,9 @@ export async function listConversationTraces(conversationId: string) {
           id: string;
           excerpt?: string;
         }[],
-        rawToolCalls: m.agentTrace.rawToolCalls as string[] | null,
+        rawToolCalls: toToolNames(m.agentTrace.rawToolCalls),
+        reasoning: m.agentTrace.reasoning,
+        usage: m.agentTrace.usage as TraceUsage | null,
         ...(durationMs !== undefined ? { durationMs } : {}),
       },
     });

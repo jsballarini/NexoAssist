@@ -40,6 +40,8 @@ export async function GET(request: Request, { params }: Params) {
             confidence: m.agentTrace.confidence,
             rulesFired: m.agentTrace.rulesFired,
             evidence: m.agentTrace.evidence,
+            reasoning: m.agentTrace.reasoning,
+            usage: m.agentTrace.usage,
           }
         : null,
     })),

@@ -30,6 +30,8 @@ type TraceItem = {
     rulesFired: string[];
     evidence?: { type: string; id: string; excerpt?: string }[];
     rawToolCalls?: string[] | null;
+    reasoning?: string;
+    usage?: { promptTokens: number; completionTokens: number; latencyMs: number } | null;
     durationMs?: number;
   };
 };
@@ -431,6 +433,11 @@ export function AnalystWorkspace({
                 <div className="mt-2 space-y-1 text-gray-700">
                   <p data-trace-understanding>{tr.trace.understanding}</p>
                   <p>Confiança: {tr.trace.confidence}%</p>
+                  {tr.trace.reasoning ? (
+                    <p data-trace-reasoning>
+                      <span className="font-medium">Por quê:</span> {tr.trace.reasoning}
+                    </p>
+                  ) : null}
                   <p>Duração: {formatDurationMs(tr.trace.durationMs)}</p>
                   {tr.trace.actions.length ? (
                     <div className="flex flex-wrap gap-1">

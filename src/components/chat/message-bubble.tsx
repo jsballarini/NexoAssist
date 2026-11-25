@@ -243,6 +243,12 @@ export function MessageBubble({
           <summary className="cursor-pointer">Trace</summary>
           <p className="mt-1 text-gray-700">{message.trace.understanding}</p>
           <p>Confiança: {message.trace.confidence}%</p>
+          {message.trace.reasoning ? (
+            <p className="mt-1" data-trace-reasoning>
+              <span className="font-medium text-gray-600">Por quê:</span>{" "}
+              {message.trace.reasoning}
+            </p>
+          ) : null}
           {message.trace.evidence?.length ? (
             <ul className="mt-1 list-inside list-disc">
               {message.trace.evidence.map((e, idx) => (

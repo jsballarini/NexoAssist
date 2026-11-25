@@ -14,6 +14,8 @@ export type ChatMessage = {
     confidence: number;
     rulesFired: string[];
     evidence?: { type: string; id: string; excerpt?: string }[];
+    reasoning?: string;
+    usage?: { promptTokens: number; completionTokens: number; latencyMs: number } | null;
   };
 };
 

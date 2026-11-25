@@ -123,6 +123,10 @@ model AgentTrace {
   rulesFired    Json
   evidence      Json
   rawToolCalls  Json?
+  /// Justificativa em linguagem natural das ações do turno (transparência).
+  reasoning     String  @default("") @db.Text
+  /// Tokens de entrada/saída e latência do turno (null em turnos sem LLM).
+  usage         Json?
 }
 
 model Ticket {
