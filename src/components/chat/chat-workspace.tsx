@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { UiBlock } from "@/lib/conversation/types";
 import { useCallback, useEffect, useState } from "react";
 import { MessageBubble } from "./message-bubble";
 import { useChatStream } from "./use-chat-stream";
@@ -21,8 +20,6 @@ type SessionItem = {
   updatedAt: string;
   preview: string;
 };
-
-type DraftBlock = Extract<UiBlock, { type: "draft_card" }>;
 
 function MessageSkeleton() {
   return (
@@ -71,6 +68,7 @@ export function ChatWorkspace() {
     loadHistory,
     confirmDraft,
     cancelDraft,
+    updateDraft,
   } = useChatStream(conversationId, () => {
     void refreshMeta();
     void loadSessions();
@@ -134,11 +132,6 @@ export function ChatWorkspace() {
       }
       await refreshMeta();
     }
-  }
-
-  function handleEditDraft(block: DraftBlock) {
-    if (viewingHistoryId) return;
-    setInput(block.title);
   }
 
   const historyMode = viewingHistoryId !== null;
@@ -253,7 +246,7 @@ export function ChatWorkspace() {
                 onQuickReply={historyMode ? undefined : handleSend}
                 onConfirmDraft={historyMode ? undefined : confirmDraft}
                 onCancelDraft={historyMode ? undefined : cancelDraft}
-                onEditDraft={historyMode ? undefined : handleEditDraft}
+                onSaveDraft={historyMode ? undefined : updateDraft}
               />
             ))
           : null}

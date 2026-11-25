@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { UiBlock } from "@/lib/conversation/types";
+import type { SaveDraftResult } from "./draft-card";
+import { blockFromSummary, type DraftBlock } from "./draft-edit";
 
 export type ChatMessage = {
   id: string;
@@ -245,6 +247,35 @@ export function useChatStream(
     return true;
   }
 
+  async function updateDraft(
+    block: DraftBlock,
+    patch: Record<string, string>,
+  ): Promise<SaveDraftResult> {
+    const res = await fetch(`/api/tickets/drafts/${encodeURIComponent(block.draftId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (res.status === 503) {
+      return { ok: false, error: "Sistema de chamados temporariamente indisponível. Tente novamente." };
+    }
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string; fields?: string[] };
+      const fields = data.fields?.length ? ` (${data.fields.join(", ")})` : "";
+      return { ok: false, error: `${data.error ?? "Não foi possível salvar o rascunho"}${fields}` };
+    }
+    const summary = (await res.json()) as Parameters<typeof blockFromSummary>[1];
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        uiBlocks: m.uiBlocks?.map((b) =>
+          b.type === "draft_card" && b.draftId === block.draftId ? blockFromSummary(b, summary) : b,
+        ),
+      })),
+    );
+    return { ok: true };
+  }
+
   return {
     messages,
     historyLoading,
@@ -256,5 +287,6 @@ export function useChatStream(
     loadHistory,
     confirmDraft,
     cancelDraft,
+    updateDraft,
   };
 }

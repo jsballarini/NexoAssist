@@ -1,11 +1,12 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { actionLabels } from "@/lib/chat/action-labels";
 import type { UiBlock } from "@/lib/conversation/types";
+import { DraftCard, type SaveDraftResult } from "./draft-card";
+import type { DraftBlock } from "./draft-edit";
 import type { ChatMessage } from "./use-chat-stream";
 
-type DraftBlock = Extract<UiBlock, { type: "draft_card" }>;
+
 
 function TicketCard({
   block,
@@ -60,66 +61,17 @@ function TicketSelector({
   );
 }
 
-function DraftCard({
-  block,
-  onConfirm,
-  onCancel,
-  onEdit,
-}: {
-  block: DraftBlock;
-  onConfirm?: (draftId: string) => Promise<boolean>;
-  onCancel?: (draftId: string) => Promise<boolean>;
-  onEdit?: (block: DraftBlock) => void;
-}) {
-  const due = new Date(block.dueAtPreview).toLocaleString("pt-BR");
-  return (
-    <div className="mt-2 rounded-lg border border-brand-200 bg-brand-50/50 p-3 text-sm">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-gray-900">{block.draftId}</span>
-        <span className="text-xs uppercase text-gray-600">{block.operation}</span>
-      </div>
-      <p className="mt-1 font-medium text-gray-800">{block.title}</p>
-      <p className="text-xs text-gray-600">
-        Prioridade: {block.priority} · SLA previsto: {due}
-      </p>
-      {block.affectedScope ? (
-        <p className="text-xs text-gray-500">Afetados: {block.affectedScope}</p>
-      ) : null}
-      {onConfirm && onCancel ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={() => void onConfirm(block.draftId)}>
-            Confirmar
-          </Button>
-          {onEdit ? (
-            <Button type="button" size="sm" variant="outline" onClick={() => onEdit(block)}>
-              Editar
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => void onCancel(block.draftId)}
-          >
-            Cancelar
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function UiBlocks({
   blocks,
   onConfirmDraft,
   onCancelDraft,
-  onEditDraft,
+  onSaveDraft,
   onQuickReply,
 }: {
   blocks?: UiBlock[];
   onConfirmDraft?: (draftId: string) => Promise<boolean>;
   onCancelDraft?: (draftId: string) => Promise<boolean>;
-  onEditDraft?: (block: DraftBlock) => void;
+  onSaveDraft?: (block: DraftBlock, patch: Record<string, string>) => Promise<SaveDraftResult>;
   onQuickReply?: (text: string) => void;
 }) {
   if (!blocks?.length) return null;
@@ -139,7 +91,7 @@ function UiBlocks({
               block={b}
               onConfirm={onConfirmDraft}
               onCancel={onCancelDraft}
-              onEdit={onEditDraft}
+              onSave={onSaveDraft}
             />
           );
         }
@@ -195,13 +147,13 @@ export function MessageBubble({
   onQuickReply,
   onConfirmDraft,
   onCancelDraft,
-  onEditDraft,
+  onSaveDraft,
 }: {
   message: ChatMessage;
   onQuickReply?: (text: string) => void;
   onConfirmDraft?: (draftId: string) => Promise<boolean>;
   onCancelDraft?: (draftId: string) => Promise<boolean>;
-  onEditDraft?: (block: DraftBlock) => void;
+  onSaveDraft?: (block: DraftBlock, patch: Record<string, string>) => Promise<SaveDraftResult>;
 }) {
   if (message.role === "system") {
     return (
@@ -234,7 +186,7 @@ export function MessageBubble({
           blocks={message.uiBlocks}
           onConfirmDraft={onConfirmDraft}
           onCancelDraft={onCancelDraft}
-          onEditDraft={onEditDraft}
+          onSaveDraft={onSaveDraft}
           onQuickReply={onQuickReply}
         />
       ) : null}

@@ -24,3 +24,19 @@ export const ticketPriorityLabel: Record<TicketPriority, string> = {
   medium: "Média",
   low: "Baixa",
 };
+export const ticketTypeLabel: Record<"INC" | "REQ", string> = {
+  INC: "Incidente",
+  REQ: "Requisição",
+};
+
+export const affectedScopeLabel: Record<"only_me" | "team" | "organization", string> = {
+  only_me: "Só eu",
+  team: "Minha equipe",
+  organization: "Toda a organização",
+};
+
+/** Rótulo PT-BR de um valor, com fallback para o valor cru (nunca vazio). */
+export function labelOr(map: Record<string, string>, value: string | undefined): string {
+  if (!value) return "—";
+  return map[value] ?? value;
+}
