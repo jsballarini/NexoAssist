@@ -13,9 +13,9 @@ export default async function EmployeeLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <EmployeeSidebar userName={session.user.name} userEmail={session.user.email} />
-      <div className="flex min-h-screen flex-1 flex-col">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
     </div>
   );
 }

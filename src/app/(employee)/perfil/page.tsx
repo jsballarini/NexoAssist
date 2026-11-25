@@ -9,7 +9,7 @@ export default async function PerfilPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col p-8">
+    <main className="flex flex-1 flex-col overflow-y-auto p-8">
       <header className="border-b border-gray-200 pb-4">
         <p className="text-sm text-gray-500">Service desk de TI &gt; Meu perfil</p>
         <h1 className="mt-1 text-xl font-semibold text-gray-900">Meu perfil</h1>
