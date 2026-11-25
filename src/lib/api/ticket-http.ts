@@ -3,6 +3,7 @@ import {
   DraftInvalidError,
   DraftNotFoundError,
   TicketForbiddenError,
+  TicketInvalidStateError,
   TicketLegacyUnavailableError,
   TicketNotFoundError,
 } from "@/lib/ticket-service";
@@ -25,7 +26,13 @@ export function ticketErrorToResponse(error: unknown): NextResponse | null {
   if (error instanceof TicketForbiddenError) {
     return NextResponse.json({ error: (error as Error).message }, { status: 403 });
   }
-  if (error instanceof DraftExpiredError || error instanceof DraftInvalidError) {
+  if (error instanceof DraftInvalidError) {
+    return NextResponse.json(
+      { error: error.message, fields: error.fields },
+      { status: 400 },
+    );
+  }
+  if (error instanceof DraftExpiredError || error instanceof TicketInvalidStateError) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   }
   return null;

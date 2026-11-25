@@ -18,6 +18,8 @@ export type TicketServiceClient = {
   findPendingDraft(requesterId: string): Promise<DraftSummary | null>;
   confirmDraft(requesterId: string, draftId: string): Promise<TicketDetail>;
   cancelDraft(requesterId: string, draftId: string): Promise<void>;
+  /** Marca o chamado como `waiting_analyst` e registra o motivo. */
+  transfer(requesterId: string, publicId: string, reason: string): Promise<TicketDetail>;
 };
 
 let singleton: TicketServiceImpl | null = null;

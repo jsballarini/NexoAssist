@@ -18,6 +18,14 @@ export type TicketSummary = {
   openedAt: string;
 };
 
+/** Complemento registrado em um chamado (histórico; a descrição original é preservada). */
+export type TicketUpdateEntry = {
+  id: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+};
+
 export type TicketDetail = TicketSummary & {
   description: string;
   category: TicketCategory;
@@ -25,4 +33,8 @@ export type TicketDetail = TicketSummary & {
   affectedScope: AffectedScope;
   lastUpdatedAt: string;
   resolvedAt: string | null;
+  /** Motivo da última transferência para analista, quando houver. */
+  transferReason?: string | null;
+  /** Complementos em ordem cronológica (mais antigo primeiro). */
+  updates: TicketUpdateEntry[];
 };

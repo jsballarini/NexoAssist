@@ -1,4 +1,4 @@
-import type { DraftOperation, Ticket, TicketDraft } from "@prisma/client";
+import type { DraftOperation, Prisma, Ticket, TicketDraft, TicketUpdate } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { computeDueAt, isBreached } from "@/lib/domain/sla";
 import { getClock } from "@/lib/domain/clock";
@@ -12,12 +12,29 @@ import {
   DraftInvalidError,
   DraftNotFoundError,
   TicketForbiddenError,
+  TicketInvalidStateError,
   TicketLegacyUnavailableError,
   TicketNotFoundError,
 } from "../errors";
-import type { DraftPayloadBody, DraftSummary } from "../draft-payload";
+import {
+  checkCreatePayload,
+  type CreateTicketPayload,
+  type DraftPayloadBody,
+  type DraftSummary,
+} from "../draft-payload";
 import { nextTicketPublicId } from "../ids";
 import type { TicketDetail, TicketSummary } from "../types";
+
+type TicketWithUpdates = Ticket & { updates: TicketUpdate[] };
+
+const WITH_UPDATES = { updates: { orderBy: { createdAt: "asc" } } } as const;
+
+function createPayloadError(check: { missing: string[]; invalid: string[] }): DraftInvalidError {
+  const parts: string[] = [];
+  if (check.missing.length) parts.push(`campos obrigatórios ausentes: ${check.missing.join(", ")}`);
+  if (check.invalid.length) parts.push(`campos inválidos: ${check.invalid.join(", ")}`);
+  return new DraftInvalidError(parts.join("; "), [...check.missing, ...check.invalid]);
+}
 
 const OPEN_STATUSES = [
   "open",
@@ -44,7 +61,7 @@ function toSummary(ticket: Ticket): TicketSummary {
   };
 }
 
-function toDetail(ticket: Ticket): TicketDetail {
+function toDetail(ticket: TicketWithUpdates): TicketDetail {
   return {
     ...toSummary(ticket),
     description: ticket.description,
@@ -53,7 +70,26 @@ function toDetail(ticket: Ticket): TicketDetail {
     affectedScope: ticket.affectedScope,
     lastUpdatedAt: ticket.lastUpdatedAt.toISOString(),
     resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
+    transferReason: ticket.transferReason,
+    updates: ticket.updates.map((u) => ({
+      id: u.id,
+      authorId: u.authorId,
+      body: u.body,
+      createdAt: u.createdAt.toISOString(),
+    })),
   };
+}
+
+async function appendUpdate(
+  tx: Prisma.TransactionClient,
+  ticketPublicId: string,
+  authorId: string,
+  body: string | undefined,
+  createdAt: Date,
+) {
+  const text = body?.trim();
+  if (!text) return;
+  await tx.ticketUpdate.create({ data: { ticketPublicId, authorId, body: text, createdAt } });
 }
 
 function guardChaos() {
@@ -142,7 +178,10 @@ export class TicketServiceImpl {
 
   async getById(requesterId: string, publicId: string): Promise<TicketDetail> {
     guardChaos();
-    const ticket = await prisma.ticket.findUnique({ where: { publicId } });
+    const ticket = await prisma.ticket.findUnique({
+      where: { publicId },
+      include: WITH_UPDATES,
+    });
     if (!ticket) {
       throw new TicketNotFoundError();
     }
@@ -150,6 +189,34 @@ export class TicketServiceImpl {
       throw new TicketForbiddenError();
     }
     return toDetail(ticket);
+  }
+
+  /**
+   * Transfere o chamado do solicitante para um analista: status `waiting_analyst`
+   * e motivo registrado. Chamados resolvidos não podem ser transferidos.
+   */
+  async transfer(requesterId: string, publicId: string, reason: string): Promise<TicketDetail> {
+    guardChaos();
+    const motive = reason.trim();
+    if (!motive) throw new DraftInvalidError("motivo da transferência obrigatório", ["reason"]);
+
+    const ticket = await prisma.ticket.findUnique({ where: { publicId } });
+    if (!ticket) throw new TicketNotFoundError();
+    if (ticket.requesterId !== requesterId) throw new TicketForbiddenError();
+    if (ticket.status === "resolved") {
+      throw new TicketInvalidStateError("Chamado resolvido não pode ser transferido");
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { publicId },
+      data: {
+        status: "waiting_analyst",
+        transferReason: motive,
+        lastUpdatedAt: getClock().now(),
+      },
+      include: WITH_UPDATES,
+    });
+    return toDetail(updated);
   }
 
   async createDraft(
@@ -176,9 +243,8 @@ export class TicketServiceImpl {
     }
 
     if (operation === "create") {
-      if (!payload.title || !payload.description) {
-        throw new DraftInvalidError("title e description obrigatórios para create");
-      }
+      const check = checkCreatePayload(payload);
+      if (!check.ok) throw createPayloadError(check);
     }
 
     const max = await maxNumericIdLocal();
@@ -256,22 +322,23 @@ export class TicketServiceImpl {
       let ticket: Ticket;
 
       if (draft.operation === "create") {
-        const type = body.type ?? "INC";
-        const publicId = await nextTicketPublicId(type);
-        const priority = body.priority ?? "medium";
+        const check = checkCreatePayload(body);
+        if (!check.ok) throw createPayloadError(check);
+        const fields: CreateTicketPayload = check.payload;
+        const publicId = await nextTicketPublicId(fields.type);
         ticket = await tx.ticket.create({
           data: {
             publicId,
             requesterId,
-            title: body.title!,
-            description: body.description!,
-            type,
-            category: body.category ?? "outros",
-            priority,
+            title: fields.title,
+            description: fields.description,
+            type: fields.type,
+            category: fields.category,
+            priority: fields.priority,
             status: "open",
-            affectedScope: body.affectedScope ?? "only_me",
+            affectedScope: fields.affectedScope,
             openedAt: now,
-            dueAt: computeDueAt(priority, now),
+            dueAt: computeDueAt(fields.priority, now),
             lastUpdatedAt: now,
           },
         });
@@ -291,7 +358,6 @@ export class TicketServiceImpl {
           where: { publicId: targetId },
           data: {
             title: body.title ?? existing.title,
-            description: body.description ?? existing.description,
             category: body.category ?? existing.category,
             priority,
             affectedScope: body.affectedScope ?? existing.affectedScope,
@@ -299,6 +365,7 @@ export class TicketServiceImpl {
             lastUpdatedAt: now,
           },
         });
+        await appendUpdate(tx, targetId, requesterId, body.description, now);
       } else {
         const targetId = body.targetTicketId;
         if (!targetId) throw new DraftInvalidError("targetTicketId ausente");
@@ -321,11 +388,11 @@ export class TicketServiceImpl {
             status: "open",
             resolvedAt: null,
             priority,
-            description: body.description ?? existing.description,
             dueAt: computeDueAt(priority, now),
             lastUpdatedAt: now,
           },
         });
+        await appendUpdate(tx, targetId, requesterId, body.description, now);
       }
 
       await tx.ticketDraft.update({
@@ -333,7 +400,11 @@ export class TicketServiceImpl {
         data: { status: "confirmed" },
       });
 
-      return toDetail(ticket);
+      const updates = await tx.ticketUpdate.findMany({
+        where: { ticketPublicId: ticket.publicId },
+        orderBy: { createdAt: "asc" },
+      });
+      return toDetail({ ...ticket, updates });
     });
   }
 

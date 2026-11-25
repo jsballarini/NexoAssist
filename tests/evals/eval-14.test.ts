@@ -14,6 +14,7 @@ describe("EVAL-14", () => {
       priority: "low",
       type: "INC",
       category: "outros",
+      affectedScope: "only_me",
     });
     const adapters = createAgentAdapters(uid);
     const result = await runAgentTurn(

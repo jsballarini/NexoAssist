@@ -19,7 +19,9 @@ describe("UNIT-RBAC-01", () => {
       dueAt: new Date(),
       lastUpdatedAt: new Date(),
       resolvedAt: new Date(),
-    });
+      transferReason: null,
+      updates: [],
+    } as never);
 
     const svc = new TicketServiceImpl();
     await expect(svc.getById("user-ana", "INC-20150")).rejects.toBeInstanceOf(

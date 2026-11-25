@@ -25,6 +25,13 @@ export class TicketNotFoundError extends Error {
   }
 }
 
+export class TicketInvalidStateError extends Error {
+  constructor(message = "Operação inválida para o estado atual do chamado") {
+    super(message);
+    this.name = "TicketInvalidStateError";
+  }
+}
+
 export class TicketNotImplementedError extends Error {
   constructor(method: string) {
     super(`${method} não implementado (F4)`);
@@ -47,8 +54,12 @@ export class DraftExpiredError extends Error {
 }
 
 export class DraftInvalidError extends Error {
-  constructor(message: string) {
+  /** Campos obrigatórios ausentes ou inválidos (quando a falha é de validação). */
+  readonly fields: string[];
+
+  constructor(message: string, fields: string[] = []) {
     super(message);
     this.name = "DraftInvalidError";
+    this.fields = fields;
   }
 }

@@ -86,6 +86,7 @@ model User {
   assignedConversations Conversation[] @relation("AssignedAnalyst")
   tickets               Ticket[]
   ticketDrafts          TicketDraft[]
+  ticketUpdates         TicketUpdate[]
 }
 
 model Conversation {
@@ -98,6 +99,8 @@ model Conversation {
   messageCount      Int               @default(0)
   assignedAnalystId String?
   assignedAnalyst   User?             @relation("AssignedAnalyst", fields: [assignedAnalystId], references: [id])
+  /// Resumo estruturado da transferência ativa (problema, chamados, motivo, confiança).
+  handoffSummary    Json?
   updatedAt         DateTime          @updatedAt
   messages          Message[]
 }
@@ -144,10 +147,26 @@ model Ticket {
   dueAt         DateTime
   lastUpdatedAt DateTime
   resolvedAt    DateTime?
+  /// Motivo da última transferência para analista (preenchido por `transfer`).
+  transferReason String?
+  updates       TicketUpdate[]
 
   @@index([requesterId])
   @@index([status])
   @@index([requesterId, status, resolvedAt])
+}
+
+/// Histórico de complementos de um chamado (a descrição original nunca é sobrescrita).
+model TicketUpdate {
+  id             String   @id @default(uuid())
+  ticketPublicId String
+  ticket         Ticket   @relation(fields: [ticketPublicId], references: [publicId], onDelete: Cascade)
+  authorId       String
+  author         User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body           String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([ticketPublicId, createdAt])
 }
 
 model TicketDraft {
