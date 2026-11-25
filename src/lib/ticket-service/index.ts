@@ -1,6 +1,12 @@
 export { createTicketServiceClient, type TicketServiceClient } from "./client";
 export { CHAOS_ERROR_BODY, fetchWithTicketRetry } from "./retry";
 export {
+  createResilientTicketClient,
+  readResilienceOptions,
+  type ResilienceOptions,
+  type ResilientMethods,
+} from "./resilient-client";
+export {
   DraftExpiredError,
   DraftInvalidError,
   DraftNotFoundError,

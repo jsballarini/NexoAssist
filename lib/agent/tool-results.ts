@@ -80,3 +80,13 @@ export function isNotFoundResult(result: unknown): result is TicketNotFoundResul
 export function isToolFailure(result: unknown): result is ToolFailure {
   return !!result && typeof result === "object" && (result as { ok?: unknown }).ok === false;
 }
+
+/** Legado de chamados fora do ar mesmo após os retries do adapter. */
+export function isLegacyUnavailable(result: unknown): boolean {
+  return isToolFailure(result) && result.code === TICKET_LEGACY_UNAVAILABLE_CODE;
+}
+
+export const LEGACY_UNAVAILABLE_REPLY =
+  "O sistema de chamados está instável no momento e não consegui concluir agora, mesmo após tentar de novo. " +
+  "Você pode tentar mais uma vez em instantes ou falar com um analista.";
+export const LEGACY_UNAVAILABLE_QUICK_REPLIES = ["Tentar de novo", "Falar com analista"];

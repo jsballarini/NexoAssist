@@ -1,10 +1,11 @@
 import { searchArticles } from "@/lib/knowledge-base/search";
-import { createTicketServiceClient } from "@/lib/ticket-service";
+import { createResilientTicketClient, createTicketServiceClient } from "@/lib/ticket-service";
 import type { AgentAdapters } from "../../../lib/agent/adapters";
 import { createConversationAgentAdapter } from "./agent-adapter";
 
+/** Adapters de um turno do agent; o cliente de chamados ganha retry/backoff (orçamento por turno). */
 export function createAgentAdapters(userId: string): AgentAdapters {
-  const ticketClient = createTicketServiceClient();
+  const ticketClient = createResilientTicketClient(createTicketServiceClient());
   return {
     ticketClient,
     conversationClient: createConversationAgentAdapter(userId),

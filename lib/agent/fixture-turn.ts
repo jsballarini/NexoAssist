@@ -11,7 +11,13 @@ import type { DraftSummary } from "./draft-types";
 import { collectEvidence } from "./evidence";
 import { EMPTY_TURN_CONTEXT, type TurnContext } from "./turn-context";
 import { runTool, type ToolName } from "./tools";
-import { isToolFailure } from "./tool-results";
+import {
+  isLegacyUnavailable,
+  isToolFailure,
+  LEGACY_UNAVAILABLE_QUICK_REPLIES,
+  LEGACY_UNAVAILABLE_REPLY,
+  toToolFailure,
+} from "./tool-results";
 import type { ImpactScope, Urgency } from "../../src/lib/domain/priority";
 
 const TICKET_ID_PATTERN = /\b(?:inc|req)-\d+\b/i;
@@ -573,25 +579,42 @@ export async function runFixtureTurn(
   callbacks?: { onToken?: (d: string) => void },
   options?: { emitTokens?: boolean; turnContext?: TurnContext },
 ): Promise<TurnResult> {
-  const plan = await matchPlan(
-    userMessage,
-    ctx,
-    adapters,
-    options?.turnContext ?? EMPTY_TURN_CONTEXT,
-  );
+  let legacyUnavailable = false;
+  let plan: Plan;
+  try {
+    plan = await matchPlan(userMessage, ctx, adapters, options?.turnContext ?? EMPTY_TURN_CONTEXT);
+  } catch (error) {
+    if (!isLegacyUnavailable(toToolFailure(error))) throw error;
+    legacyUnavailable = true;
+    plan = {
+      tools: [],
+      understanding: "Sistema de chamados indisponível durante a análise.",
+      reply: LEGACY_UNAVAILABLE_REPLY,
+      confidence: 60,
+    };
+  }
   const toolResults: unknown[] = [];
   const actions: string[] = [];
 
   for (const t of plan.tools) {
     actions.push(t.name);
-    toolResults.push(await runTool(t.name, t.args, ctx, adapters));
+    const result = await runTool(t.name, t.args, ctx, adapters);
+    toolResults.push(result);
+    if (isLegacyUnavailable(result)) {
+      legacyUnavailable = true;
+      break;
+    }
   }
 
-  const rulesFired = plan.rulesOverride ?? inferRulesFromContent(userMessage, actions);
+  const baseRules = plan.rulesOverride ?? inferRulesFromContent(userMessage, actions);
+  const rulesFired = legacyUnavailable ? [...baseRules, "TICKET_LEGACY_UNAVAILABLE"] : baseRules;
   const evidence = collectEvidence(toolResults);
 
-  const content =
-    typeof plan.reply === "function" ? plan.reply(toolResults) : plan.reply;
+  const content = legacyUnavailable
+    ? LEGACY_UNAVAILABLE_REPLY
+    : typeof plan.reply === "function"
+      ? plan.reply(toolResults)
+      : plan.reply;
 
   if (options?.emitTokens !== false) {
     for (const word of content.split(/(\s+)/)) {
@@ -599,7 +622,12 @@ export async function runFixtureTurn(
     }
   }
 
-  const uiBlocks = plan.uiBlocks?.(toolResults) ?? [{ type: "confidence", value: plan.confidence }];
+  const uiBlocks: UiBlock[] = legacyUnavailable
+    ? [
+        { type: "confidence", value: plan.confidence },
+        { type: "quick_replies", options: LEGACY_UNAVAILABLE_QUICK_REPLIES },
+      ]
+    : (plan.uiBlocks?.(toolResults) ?? [{ type: "confidence", value: plan.confidence }]);
 
   return {
     content,
