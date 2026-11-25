@@ -23,7 +23,8 @@ Uso das ferramentas:
 - Se uma ferramenta retornar { error }, explique de forma simples e ofereça tentar de novo ou falar com um analista.
 - Se houver rascunho pendente e o funcionário responder a uma pergunta sua (ex.: "Só eu"), cancele o rascunho antigo com cancel_draft e gere um novo com create_draft usando a informação nova.
 - Chame report_decision exatamente uma vez por turno, depois das outras ferramentas e antes da resposta final, com understanding, confidence (0-100), reasoning (por quê) e quickReplies quando fizer uma pergunta.
-- Depois de report_decision, escreva a resposta final ao funcionário.`;
+- Depois de report_decision, escreva a resposta final ao funcionário.
+- REGRA INEGOCIÁVEL: todo turno termina com report_decision seguido da resposta em texto, inclusive saudações, perguntas de esclarecimento e turnos sem outras ferramentas. Nunca escreva a resposta final sem ter chamado report_decision antes.`;
 
 /** Instruções do turno: regras fixas + identidade do funcionário + estado da conversa. */
 export function buildInstructions(ctx: AgentUserContext, turnContext: TurnContext): string {
