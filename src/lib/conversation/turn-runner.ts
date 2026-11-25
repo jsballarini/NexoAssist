@@ -1,4 +1,5 @@
-import { runAgentTurn } from "../../../lib/agent";
+import { getHistoryMaxMessages, runAgentTurn } from "../../../lib/agent";
+import { loadTurnContext } from "./turn-context-loader";
 import { publishTurnEvent, closeTurn } from "./turn-bus";
 import { createAgentAdapters } from "./adapters-factory";
 import { addAssistantMessage } from "./repository";
@@ -15,6 +16,9 @@ export async function executeTurn(params: {
   const adapters = createAgentAdapters(params.userId);
 
   try {
+    const turnContext = await loadTurnContext(params.conversationId, params.userId, {
+      maxMessages: getHistoryMaxMessages(),
+    });
     const result = await runAgentTurn(
       params.content,
       {
@@ -24,6 +28,7 @@ export async function executeTurn(params: {
         conversationId: params.conversationId,
       },
       adapters,
+      turnContext,
       {
         onTrace: (partial) => {
           publishTurnEvent(params.turnId, {

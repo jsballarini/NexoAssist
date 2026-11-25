@@ -216,6 +216,23 @@ export class TicketServiceImpl {
     return toDraftSummary(draft, payload, existing);
   }
 
+  /** Rascunho pendente mais recente do solicitante (leitura; não passa pelo guard de chaos). */
+  async findPendingDraft(requesterId: string): Promise<DraftSummary | null> {
+    const now = getClock().now();
+    const draft = await prisma.ticketDraft.findFirst({
+      where: { requesterId, status: "pending", expiresAt: { gt: now } },
+      orderBy: { expiresAt: "desc" },
+    });
+    if (!draft) return null;
+    const body = parsePayload(draft.payload);
+    const existing = body.targetTicketId
+      ? ((await prisma.ticket.findUnique({ where: { publicId: body.targetTicketId } })) ??
+        undefined)
+      : undefined;
+    if (existing && existing.requesterId !== requesterId) return null;
+    return toDraftSummary(draft, body, existing);
+  }
+
   async confirmDraft(requesterId: string, draftId: string): Promise<TicketDetail> {
     guardChaos();
     const now = getClock().now();

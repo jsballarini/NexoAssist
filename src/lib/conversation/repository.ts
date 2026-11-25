@@ -103,6 +103,17 @@ export async function listMessages(conversationId: string, since?: Date) {
   });
 }
 
+/** Últimas `limit` mensagens da conversa em ordem cronológica, com o trace do assistente. */
+export async function listRecentMessages(conversationId: string, limit: number) {
+  const rows = await prisma.message.findMany({
+    where: { conversationId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { agentTrace: { select: { evidence: true } } },
+  });
+  return rows.reverse();
+}
+
 export async function getConversationForUser(conversationId: string, userId: string) {
   return prisma.conversation.findFirst({
     where: { id: conversationId, userId },

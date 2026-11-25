@@ -15,6 +15,7 @@ export type TicketServiceClient = {
     operation: DraftOperation,
     payload: DraftPayloadBody,
   ): Promise<DraftSummary>;
+  findPendingDraft(requesterId: string): Promise<DraftSummary | null>;
   confirmDraft(requesterId: string, draftId: string): Promise<TicketDetail>;
   cancelDraft(requesterId: string, draftId: string): Promise<void>;
 };

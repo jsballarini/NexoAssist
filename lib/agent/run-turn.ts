@@ -2,6 +2,7 @@ import type { AgentAdapters, AgentUserContext, TurnResult, TurnStreamCallbacks, 
 import { shouldUseFixtures, withLlmConcurrency } from "./config";
 import { runFixtureTurn } from "./fixture-turn";
 import { runLlmTurn } from "./llm-turn";
+import { EMPTY_TURN_CONTEXT, type TurnContext } from "./turn-context";
 
 function emptyTrace(understanding: string): TurnTrace {
   return {
@@ -22,8 +23,10 @@ export async function runAgentTurn(
   userMessage: string,
   ctx: AgentUserContext,
   adapters: AgentAdapters,
+  turnContext: TurnContext = EMPTY_TURN_CONTEXT,
   callbacks?: TurnStreamCallbacks,
 ): Promise<TurnResult> {
+  void turnContext;
   return withLlmConcurrency(async () => {
     if (shouldUseFixtures()) {
       callbacks?.onTrace?.(emptyTrace("Analisando…"));
