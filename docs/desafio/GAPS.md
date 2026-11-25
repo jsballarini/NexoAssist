@@ -9,7 +9,7 @@ Legenda de severidade: **C** crítico · **M** médio · **B** baixo.
 
 Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 
-Índice da pasta desafio: [README.md](README.md).
+Índice da pasta desafio: [README.md](README.md). Lacunas de comportamento do agent contra o PRD: [GAPS2.md](GAPS2.md).
 
 ---
 

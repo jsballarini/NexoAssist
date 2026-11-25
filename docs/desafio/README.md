@@ -3,7 +3,7 @@
 **Atualizado:** 2026-11-24  
 **Versão da aplicação de referência:** `0.5.0-m5`
 
-Esta pasta guarda a **baseline imutável** do desafio técnico (PDF + protótipo visual). A especificação operacional derivada está em [`../02-especificacao/`](../02-especificacao/02-02-especificacao-funcional.md). Lacunas entre baseline e código: [`GAPS.md`](GAPS.md).
+Esta pasta guarda a **baseline imutável** do desafio técnico (PDF + protótipo visual). A especificação operacional derivada está em [`../02-especificacao/`](../02-especificacao/02-02-especificacao-funcional.md). Lacunas entre baseline e código: [`GAPS.md`](GAPS.md) (vs especificação interna) e [`GAPS2.md`](GAPS2.md) (comportamento real vs PRD).
 
 ## Conteúdo
 
@@ -38,7 +38,7 @@ Detalhe de componentes e larguras: [protótipo-mapeamento](../anexos/protótipo-
 3. [Charter](../01-iniciacao/01-project-charter.md) — AC-1…AC-8  
 4. [02-02 especificação funcional](../02-especificacao/02-02-especificacao-funcional.md)  
 5. [Matriz de rastreabilidade](../03-processos-validacao/03-01-matriz-rastreabilidade.md)  
-6. [As built](../04-registro-mudanca/04-03-as-built.md) + [GAPS.md](GAPS.md)
+6. [As built](../04-registro-mudanca/04-03-as-built.md) + [GAPS.md](GAPS.md) + [GAPS2.md](GAPS2.md)
 
 ## Links rápidos
 
