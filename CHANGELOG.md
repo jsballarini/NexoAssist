@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+## [0.7.1-m7.1] - 2026-11-24
+
+### Adicionado
+
+- **CI (Etapa 03):** job `e2e` (Playwright 13, `workers: 1`); `npm run build` no job `test`; Docker `build` após e2e; deploy SSH alinhado ao runbook (`DEPLOY_PATH` secret).
+- **Governança:** CR **G-UI-E08** — [02-02](docs/02-especificacao/02-02-especificacao-funcional.md) composer bloqueado + HTTP 423 em handoff.
+
+### Documentação
+
+- Perfis ENV (local / CI / demo LLM), matriz de gates, [03-02](docs/03-processos-validacao/03-02-plano-testes.md) sem Mastra runtime nos evals; docs **0.3.3**; gaps E09, OPS-02, PRD-02/03 resolvidos.
+
 ## [0.7.0-m7] - 2026-11-24
 
 ### Adicionado

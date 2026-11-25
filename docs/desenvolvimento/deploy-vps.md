@@ -1,7 +1,7 @@
 # Deploy em VPS (runbook)
 
 **Atualizado:** 2026-11-24  
-**Versão app:** `0.5.0-m5`  
+**Versão app:** `0.7.1-m7.1`  
 **URL pública:** _TBD_ (preencher após primeiro deploy)
 
 Guia operacional para **E-11** / AC-1. O pipeline [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) inclui job `deploy` via SSH — o script remoto deve espelhar os passos abaixo.
@@ -73,8 +73,9 @@ Secrets no repositório GitHub:
 | `DEPLOY_HOST` | IP ou hostname da VPS |
 | `DEPLOY_USER` | Usuário SSH |
 | `DEPLOY_KEY` | Chave privada (sem passphrase no CI) |
+| `DEPLOY_PATH` | Diretório do clone na VPS (ex. `/home/deploy/nexo-assist`) |
 
-Substituir o `echo` no job `deploy` por script que executa **Atualização** acima em `REMOTE_PATH` na VPS.
+O job `deploy` em [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) executa a seção **Atualização** via SSH (`cd $DEPLOY_PATH`, `git pull`, `docker compose build`, `migrate deploy`, `up -d`). Só roda em `push` para `main` quando `DEPLOY_HOST` está configurado.
 
 ## Reverse proxy (recomendado)
 

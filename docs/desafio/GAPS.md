@@ -1,8 +1,8 @@
 # Gaps — baseline `docs/desafio` vs entrega
 
 **Data:** 2026-11-24  
-**Versão app:** `0.7.0-m7`  
-**Pacote docs:** `0.3.2`  
+**Versão app:** `0.7.1-m7.1`  
+**Pacote docs:** `0.3.3`  
 **Baseline:** [PRD v5](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf) + protótipo [nexo/nexo.pen](nexo/nexo.pen)
 
 Legenda de severidade: **C** crítico · **M** médio · **B** baixo.
@@ -19,11 +19,11 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 |-------|---------|---------|------------------|
 | A Documental | 0 | 0 | 5 |
 | B AC charter | 0 | 0 | 4 |
-| C Escopo E-xx | 2 | 1 (E-02 Mastra) | 0 |
-| D UI employee | 1 | 0 | 9 |
-| E UI analista | 0 | 1 | 5 |
-| F PRD implícito | 3 | 1 (TailAdmin) | 0 |
-| G Operação | 1 | 0 | 1 |
+| C Escopo E-xx | 0 | 1 (G-E02 Mastra) | 2 |
+| D UI employee | 0 | 1 (G-UI-E08 handoff) | 9 |
+| E UI analista | 0 | 1 (G-UI-A06 SPA) | 5 |
+| F PRD implícito | 0 | 1 (G-PRD-01 TailAdmin) | 2 |
+| G Operação | 0 | 0 | 2 |
 
 ---
 
@@ -55,7 +55,7 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 | ID | Sev | Gap | Status | Notas |
 |----|-----|-----|--------|-------|
 | G-E02 | M | Mastra vs orchestrator próprio | **aceito** | [04-03 §3](../04-registro-mudanca/04-03-as-built.md) |
-| G-E09 | M | CI: deploy SSH stub; sem Playwright no job test | **aberto** | `.github/workflows/ci.yml` |
+| G-E09 | M | CI: deploy SSH stub; sem Playwright no job test | **resolvido** | `.github/workflows/ci.yml` — jobs `e2e` + deploy runbook |
 | G-E11 | C | Deploy VPS documentado | **resolvido** | Runbook + §4 as-built |
 
 ---
@@ -71,7 +71,7 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 | G-UI-E05 | B | Indicador “digitando…” explícito | **resolvido** |
 | G-UI-E06 | M | Rascunho: ação Editar | **resolvido** |
 | G-UI-E07 | M | Seletor multi-ticket clicável | **resolvido** |
-| G-UI-E08 | M | Composer ativo em `awaiting_analyst` (spec) vs bloqueado (app) | aberto |
+| G-UI-E08 | M | Composer bloqueado em handoff (CR [04-02 §0.3.3](../04-registro-mudanca/04-02-registro-mudancas.md)) | **aceito** |
 | G-UI-E09 | B | Perfil: “Alterada há N dias” | **resolvido** |
 | G-UI-E10 | B | Skeletons/spinners consistentes | **resolvido** |
 
@@ -95,8 +95,8 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 | ID | Sev | Gap | Status | Notas |
 |----|-----|-----|--------|-------|
 | G-PRD-01 | B | TailAdmin OSS integral | **aceito** | Tailwind + componentes próprios |
-| G-PRD-02 | M | Demo default em fixtures | aberto | `AGENT_EVAL_FIXTURES=true` |
-| G-PRD-03 | B | Plano testes cita Mastra nos evals | aberto | Vitest + fixture-turn |
+| G-PRD-02 | M | Demo default em fixtures | **resolvido** | README perfis local / CI / demo LLM |
+| G-PRD-03 | B | Plano testes cita Mastra nos evals | **resolvido** | [03-02](../03-processos-validacao/03-02-plano-testes.md) |
 
 ---
 
@@ -105,20 +105,20 @@ Status: `aberto` | `aceito` (decisão formal) | `resolvido` | `adiado`
 | ID | Sev | Gap | Status | Notas |
 |----|-----|-----|--------|-------|
 | G-OPS-01 | C | VPS sem URL/procedimento real no repositório | **resolvido** | Runbook template; URL = `TBD` até deploy |
-| G-OPS-02 | M | CI sem E2E Playwright / `next build` no job test | aberto | Build via Docker no job `build` |
+| G-OPS-02 | M | CI sem E2E Playwright / `next build` no job test | **resolvido** | GHA: `test` (+ build) → `e2e` → `build` Docker |
 
 ---
 
 ## Priorização
 
-1. **Feito (M6 doc):** README desafio, GAPS, links, as-built §1/2/4, runbook VPS.
-2. **Médio:** AC-7 (trace/chips employee, painel analista), AC-5 trade-offs no README.
-3. **Opcional / CR:** alinhar 02-02 ao handoff (G-UI-E08); integrar Mastra (G-E02); E2E no GHA (G-OPS-02).
+1. **Concluído (Etapas 01–03):** UI employee/analista, AC-7, CI e2e, CR handoff E08, perfis ENV.
+2. **Aceitos (não reabrir):** G-E02 Mastra, G-UI-A06 SPA, G-UI-E08 handoff, G-PRD-01 TailAdmin.
+3. **Pós-entrega:** preencher URL VPS no runbook; configurar secrets `DEPLOY_*` no repositório.
 
 ---
 
 ## Alinhado (referência)
 
-Fluxos PRD com testes: login, KB, status, draft, transfer, limite 30, console analista, evals **01–15**, E2E **01–13**, `INT-BOUNDARY-01`, polling ETag, Docker Compose local.
+Fluxos PRD com testes: login, KB, status, draft, transfer, limite 30, console analista, evals **01–15**, E2E **01–13**, `INT-BOUNDARY-01`, polling ETag, Docker Compose local, pipeline GHA com e2e.
 
 Atualizar este arquivo quando um gap mudar de status ou surgir novo CR em [04-02](../04-registro-mudanca/04-02-registro-mudancas.md).

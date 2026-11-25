@@ -2,13 +2,13 @@
 
 Agent de service desk de TI para o desafio técnico **Beyond the Bytes**. Baseline de produto: [docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf](docs/desafio/Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf). Lacunas documentadas: [docs/desafio/GAPS.md](docs/desafio/GAPS.md).
 
-**Versão da aplicação:** `0.5.0-m5` (marco **M5** — console analista, evals 11–15, CI) — ver [CHANGELOG.md](CHANGELOG.md).
+**Versão da aplicação:** `0.7.1-m7.1` (M7 UI + **M7.1** CI/e2e/governança) — ver [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentação
 
 | Onde | Conteúdo |
 |------|----------|
-| [docs/README.md](docs/README.md) | Especificação (pacote docs **0.3.0**) |
+| [docs/README.md](docs/README.md) | Especificação (pacote docs **0.3.3**) |
 | [docs/desafio/](docs/desafio/README.md) | PRD, protótipo, GAPS |
 | [docs/desenvolvimento/](docs/desenvolvimento/README.md) | Status M1–M5, arquitetura |
 | [docs/execucao/](docs/execucao/README.md) | Guias F1–F5 |
@@ -63,6 +63,23 @@ LLM_MAX_CONCURRENCY=2
 
 Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example`) — adequado para CI.
 
+### Perfis de ambiente (G-PRD-02)
+
+| Perfil | Quando | `AGENT_EVAL_FIXTURES` | LLM |
+|--------|--------|------------------------|-----|
+| **Local dev** | `npm run dev` | `true` (default) ou `false` com OpenRouter | Opcional |
+| **CI / E2E** | GHA jobs `test` + `e2e`, Playwright local | `true` (obrigatório) | Desligado |
+| **Demo LLM** | Entrevista / staging | `false` + `OPENROUTER_API_KEY` | OpenRouter |
+
+Detalhes: [`.env.example`](.env.example), [02-09](docs/02-especificacao/02-09-variaveis-ambiente.md).
+
+### Gates de validação (G-OPS-02)
+
+| Onde | Unit + evals | E2E | `next build` |
+|------|--------------|-----|--------------|
+| Local pré-push | `npm run test:unit` + `npm run test:evals` | `npm run test:e2e` | `npm run build` |
+| GitHub Actions | job `test` | job `e2e` | job `test` (+ Docker em `build`) |
+
 ### Chat SSE
 
 1. Abrir `EventSource` em `GET /api/conversations/:id/stream?turnId=<uuid>`.
@@ -97,7 +114,7 @@ Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example
 
 | Marco | Estado |
 |-------|--------|
-| M1–M5 | Concluídos — [status](docs/desenvolvimento/status-implementacao.md) |
+| M1–M7.1 | Concluídos — [status](docs/desenvolvimento/status-implementacao.md) |
 
 ## Decisões e trade-offs
 
@@ -107,10 +124,10 @@ Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example
 | LLM default | `AGENT_EVAL_FIXTURES=true` sem API key | CI e onboarding sem custo |
 | E2E | Porta **3099** dedicada | Evita colisão com `next dev` :3000 |
 | Mutação tickets | Sempre via draft confirmado | Único writer `ticket-service`; dedup Anexo A |
-| Handoff | Employee bloqueado em `with_analyst` (423) | Evita mensagens paralelas agent × analista |
+| Handoff | Employee bloqueado em `awaiting_analyst` e `with_analyst` (423) | CR [04-02 §0.3.3](docs/04-registro-mudanca/04-02-registro-mudancas.md); gap **G-UI-E08** `aceito` |
 | Rate limit | In-memory por IP em `/api/*` | Doc PRD; produção atrás de proxy real |
 | UI | Tailwind + componentes próprios | Inspiração TailAdmin, não fork do kit |
-| Deploy | Compose + runbook VPS; CI deploy = hook SSH | [deploy-vps.md](docs/desenvolvimento/deploy-vps.md) |
+| Deploy | Compose + runbook VPS; CI = test → e2e → docker → SSH deploy | [deploy-vps.md](docs/desenvolvimento/deploy-vps.md) |
 
 ## Estrutura
 

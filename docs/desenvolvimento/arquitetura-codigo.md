@@ -78,11 +78,20 @@ flowchart LR
 - Produção: `OPENROUTER_API_KEY` + `OPENROUTER_MODEL`; `LLM_MAX_CONCURRENCY` (default 2).
 - Orchestrator próprio (não `@mastra/core` pinado) — ver [04-03 §3](../04-registro-mudanca/04-03-as-built.md).
 
-## Testes (M5)
+## Gates CI vs local
+
+| Onde | Unit + evals | E2E Playwright | `next build` | Docker image |
+|------|----------------|----------------|--------------|--------------|
+| **Local (pré-push)** | `npm run test:unit` + `npm run test:evals` | `npm run test:e2e` (`workers: 1`) | `npm run build` | opcional |
+| **GitHub Actions** | job `test` | job `e2e` (`needs: test`) | job `test` | job `build` (`needs: e2e`) |
+
+Variáveis espelhadas no job `e2e`: `AGENT_EVAL_FIXTURES=true`, `TICKET_CHAOS_RATE=0`, `CHAOS_ENDPOINT_ENABLED=true`, `DATABASE_URL`, `SESSION_SECRET`.
+
+## Testes (M7)
 
 | Camada | IDs |
 |--------|-----|
-| Unit/INT | 28 arquivos Vitest (SLA, RBAC, boundary, analyst poll/409, …) |
+| Unit/INT | Vitest (SLA, RBAC, boundary, analyst poll/409, …) |
 | Evals | **EVAL-01**–**EVAL-15** |
 | E2E | `e2e-01` … `e2e-13` (Playwright em **127.0.0.1:3099**) |
 
