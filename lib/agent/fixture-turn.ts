@@ -481,6 +481,10 @@ export async function runFixtureTurn(
       confidence: normalizeConfidence(plan.confidence),
       rulesFired,
       evidence,
+      reasoning:
+        actions.length > 0
+          ? `Cenário determinístico (CI): ${plan.understanding} Ferramentas: ${actions.join(", ")}.`
+          : `Cenário determinístico (CI): ${plan.understanding} Nenhuma ferramenta necessária.`,
       rawToolCalls: plan.tools,
     },
   };

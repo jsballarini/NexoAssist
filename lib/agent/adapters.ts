@@ -1,6 +1,7 @@
 import type { DraftOperation, DraftPayloadBody, DraftSummary } from "./draft-types";
 import type { TicketDetail, TicketSummary } from "../../src/lib/ticket-service/types";
 import type { UiBlock } from "../../src/lib/conversation/types";
+import type { AgentUsage } from "./schemas";
 
 export type KbArticleHit = {
   slug: string;
@@ -39,20 +40,26 @@ export type AgentAdapters = {
   conversationClient: ConversationClient;
 };
 
+export type TurnTrace = {
+  understanding: string;
+  actions: string[];
+  confidence: number;
+  rulesFired: string[];
+  evidence: { type: string; id: string; excerpt?: string }[];
+  /** Justificativa em linguagem natural das ações escolhidas. */
+  reasoning: string;
+  /** Chamadas de ferramenta reais (nome, argumentos, resultado resumido) ou erro do turno. */
+  rawToolCalls?: unknown;
+  usage?: AgentUsage;
+};
+
 export type TurnResult = {
   content: string;
-  trace: {
-    understanding: string;
-    actions: string[];
-    confidence: number;
-    rulesFired: string[];
-    evidence: { type: string; id: string; excerpt?: string }[];
-    rawToolCalls?: unknown;
-  };
+  trace: TurnTrace;
   uiBlocks: UiBlock[];
 };
 
 export type TurnStreamCallbacks = {
-  onTrace?: (partial: TurnResult["trace"]) => void;
+  onTrace?: (partial: TurnTrace) => void;
   onToken?: (delta: string) => void;
 };

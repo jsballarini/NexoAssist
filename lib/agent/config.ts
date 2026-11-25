@@ -11,10 +11,30 @@ function setLlmActive(n: number) {
   globalForLlm.__nexoLlmActive = n;
 }
 
+/** Fixtures determinísticos só rodam quando explicitamente habilitados (CI/evals). */
 export function shouldUseFixtures(): boolean {
-  if (process.env.AGENT_EVAL_FIXTURES === "true") return true;
-  if (!process.env.OPENROUTER_API_KEY?.trim()) return true;
-  return false;
+  return process.env.AGENT_EVAL_FIXTURES === "true";
+}
+
+function readPositiveInt(name: string, fallback: number): number {
+  const n = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+const DEFAULT_HISTORY_MAX_MESSAGES = 20;
+const DEFAULT_MAX_STEPS = 5;
+const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
+
+export function getHistoryMaxMessages(): number {
+  return readPositiveInt("AGENT_HISTORY_MAX_MESSAGES", DEFAULT_HISTORY_MAX_MESSAGES);
+}
+
+export function getMaxSteps(): number {
+  return readPositiveInt("AGENT_MAX_STEPS", DEFAULT_MAX_STEPS);
+}
+
+export function getMaxOutputTokens(): number {
+  return readPositiveInt("AGENT_MAX_OUTPUT_TOKENS", DEFAULT_MAX_OUTPUT_TOKENS);
 }
 
 const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";

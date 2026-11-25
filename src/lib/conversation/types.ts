@@ -59,6 +59,9 @@ export type AgentTracePayload = {
   confidence: number;
   rulesFired: string[];
   evidence: { type: string; id: string; excerpt?: string }[];
+  reasoning?: string;
+  rawToolCalls?: unknown;
+  usage?: { promptTokens: number; completionTokens: number; latencyMs: number };
 };
 
 export type SseEvent =
