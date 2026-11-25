@@ -53,11 +53,6 @@ describe("runAgentTurn (modo Mastra)", () => {
     const model = scriptedModel([
       [
         toolCall("c1", "list_open_tickets", {}),
-        toolCall("c2", "report_decision", {
-          understanding: "Quer ver chamados",
-          confidence: 85,
-          reasoning: "Listei os chamados abertos.",
-        }),
         { type: "finish", finishReason: "tool-calls", usage },
       ],
       [
@@ -65,6 +60,14 @@ describe("runAgentTurn (modo Mastra)", () => {
         { type: "text-delta", id: "t1", delta: "Você tem 1 chamado aberto." },
         { type: "text-end", id: "t1" },
         { type: "finish", finishReason: "stop", usage },
+      ],
+      [
+        toolCall("c2", "report_decision", {
+          understanding: "Quer ver chamados",
+          confidence: 85,
+          reasoning: "Listei os chamados abertos.",
+        }),
+        { type: "finish", finishReason: "tool-calls", usage },
       ],
     ]);
     const tokens: string[] = [];

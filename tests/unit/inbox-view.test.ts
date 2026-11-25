@@ -4,6 +4,7 @@ import {
   filterInbox,
   firstName,
   inboxContext,
+  matchesFilter,
   previewPrefix,
 } from "@/lib/analyst/inbox-view";
 import type { InboxItem } from "@/lib/analyst/types";
@@ -23,6 +24,8 @@ function item(overrides: Partial<InboxItem>): InboxItem {
     updatedAt: new Date().toISOString(),
     assignedAnalystId: null,
     assignedAnalystName: null,
+    lastAnalystId: null,
+    isHandback: false,
     needsReview: false,
     inboxKind: "handoff",
     ...overrides,
@@ -37,7 +40,27 @@ const items = [
 
 describe("inbox view", () => {
   it("counts each chip independently of the search", () => {
-    expect(countByFilter(items, ME)).toEqual({ all: 3, for_you: 1, with_agent: 1, mine: 1 });
+    expect(countByFilter(items, ME)).toEqual({
+      all: 3,
+      for_you: 1,
+      with_agent: 1,
+      mine: 1,
+      closed: 0,
+    });
+  });
+
+  it("routes returned conversations to Com o agent, not Minhas", () => {
+    const returned = item({
+      conversationId: "d",
+      state: "with_agent",
+      assignedAnalystId: null,
+      lastAnalystId: ME,
+      isHandback: true,
+      inboxKind: "handoff",
+    });
+    expect(matchesFilter(returned, "mine", ME)).toBe(false);
+    expect(matchesFilter(returned, "with_agent", ME)).toBe(true);
+    expect(inboxContext(returned, ME).label).toContain("Agent retomou");
   });
 
   it("filters by chip and searches name, preview and linked ticket", () => {
@@ -53,6 +76,14 @@ describe("inbox view", () => {
     expect(inboxContext({ ...items[2], assignedAnalystId: "x", assignedAnalystName: "Mariana" }, ME).label).toBe(
       "Mariana atendendo",
     );
+  });
+
+  it("routes closed conversations only to Encerrados", () => {
+    const closed = item({ conversationId: "z", state: "closed", inboxKind: "closed" });
+    expect(matchesFilter(closed, "closed", ME)).toBe(true);
+    expect(matchesFilter(closed, "all", ME)).toBe(false);
+    expect(inboxContext(closed, ME)).toEqual({ tone: "neutral", label: "Sessão encerrada" });
+    expect(countByFilter([...items, closed], ME).closed).toBe(1);
   });
 
   it("prefixes agent previews and extracts first names", () => {

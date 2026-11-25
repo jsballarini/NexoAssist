@@ -6,8 +6,9 @@
 
 @theme {
   --font-*: initial;
-  --font-outfit: var(--font-outfit-family), Outfit, sans-serif;
-  --font-display: var(--font-newsreader-family), Newsreader, Georgia, serif;
+  --font-outfit: var(--font-outfit-family, Outfit), sans-serif;
+  --font-login: var(--font-schibsted-family, "Schibsted Grotesk"), var(--font-outfit-family, Outfit), sans-serif;
+  --font-newsreader: var(--font-newsreader-family, Newsreader), Georgia, serif;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
@@ -145,6 +146,14 @@
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+
+  /* Variáveis next/font ficam no <html>; stacks de família no mesmo nó que :root. */
+  html {
+    --font-newsreader: var(--font-newsreader-family, Newsreader), Georgia, serif;
+    --font-login: var(--font-schibsted-family, "Schibsted Grotesk"), var(--font-outfit-family, Outfit),
+      sans-serif;
+    --font-outfit: var(--font-outfit-family, Outfit), sans-serif;
   }
 
   body {

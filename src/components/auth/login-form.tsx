@@ -52,9 +52,11 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="email">E-mail corporativo</Label>
+        <Label htmlFor="email" className="text-sm font-medium text-nexo-ink-2">
+          E-mail corporativo
+        </Label>
         <div className="relative">
           <MailIcon className={FIELD_ICON_CLASS} />
           <Input
@@ -71,7 +73,9 @@ export function LoginForm() {
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Senha</Label>
+          <Label htmlFor="password" className="text-sm font-medium text-nexo-ink-2">
+            Senha
+          </Label>
           <a
             href="tel:4000"
             className="text-sm font-medium text-brand-700 hover:underline"

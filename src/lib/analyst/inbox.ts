@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import type { ConversationState } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 const INBOX_STATES: ConversationState[] = ["awaiting_analyst", "with_analyst"];
 
@@ -23,17 +24,23 @@ export async function listInboxItems(): Promise<InboxItem[]> {
         { state: { in: INBOX_STATES } },
         {
           state: "with_agent",
-          messages: {
-            some: {
-              role: "assistant",
-              agentTrace: {
-                OR: [
-                  { confidence: { lt: threshold } },
-                  { rulesFired: { array_contains: LOW_CONFIDENCE_RULE } },
-                ],
+          OR: [
+            {
+              messages: {
+                some: {
+                  role: "assistant",
+                  agentTrace: {
+                    OR: [
+                      { confidence: { lt: threshold } },
+                      { rulesFired: { array_contains: LOW_CONFIDENCE_RULE } },
+                    ],
+                  },
+                },
               },
             },
-          },
+            { handoffSummary: { not: Prisma.JsonNull } },
+            { messages: { some: { role: "analyst" } } },
+          ],
         },
       ],
     },
@@ -68,7 +75,20 @@ export async function listInboxItems(): Promise<InboxItem[]> {
       threshold,
     );
     const isHandoff = INBOX_STATES.includes(conv.state);
-    if (!isHandoff && !needsReview) continue;
+    const hadHumanHandoff =
+      conv.handoffSummary != null ||
+      (await prisma.message.count({
+        where: { conversationId: conv.id, role: "analyst" },
+        take: 1,
+      })) > 0;
+    const isHandback = conv.state === "with_agent" && hadHumanHandoff;
+    if (!isHandoff && !needsReview && !isHandback) continue;
+
+    const lastAnalyst = await prisma.message.findFirst({
+      where: { conversationId: conv.id, role: "analyst" },
+      orderBy: { createdAt: "desc" },
+      select: { authorUserId: true },
+    });
 
     const previewMsg = conv.messages[0];
     const preview = previewMsg
@@ -83,10 +103,11 @@ export async function listInboxItems(): Promise<InboxItem[]> {
     });
     const unreadCount = Math.max(0, userMsgCount - Math.floor(analystMsgCount / 2));
 
+    const handoffTicketIds = parseHandoffSummary(conv.handoffSummary)?.ticketIds;
     const linkedTicketId = extractLinkedTicketId(
       lastAssistant?.agentTrace?.evidence,
       lastAssistant?.content ?? preview,
-      isHandoff ? parseHandoffSummary(conv.handoffSummary)?.ticketIds : undefined,
+      isHandoff || isHandback ? handoffTicketIds : undefined,
     );
 
     items.push({
@@ -103,13 +124,93 @@ export async function listInboxItems(): Promise<InboxItem[]> {
       updatedAt: conv.updatedAt.toISOString(),
       assignedAnalystId: conv.assignedAnalystId,
       assignedAnalystName: conv.assignedAnalyst?.name ?? null,
+      lastAnalystId: lastAnalyst?.authorUserId ?? null,
+      isHandback,
       needsReview,
-      inboxKind: isHandoff ? "handoff" : "review",
+      inboxKind: isHandoff || isHandback ? "handoff" : "review",
     });
   }
 
-  // Conversas transferidas primeiro; a revisão sugerida vem depois, cada grupo por atividade recente.
-  return items.sort((a, b) => Number(a.inboxKind === "review") - Number(b.inboxKind === "review"));
+  const closedConversations = await prisma.conversation.findMany({
+    where: {
+      state: "closed",
+      OR: [
+        { handoffSummary: { not: Prisma.JsonNull } },
+        { messages: { some: { role: "analyst" } } },
+        {
+          messages: {
+            some: { role: "system", content: { contains: "encerrou o atendimento" } },
+          },
+        },
+      ],
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 80,
+    include: {
+      user: { select: { id: true, name: true, department: true } },
+      assignedAnalyst: { select: { id: true, name: true } },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true, role: true },
+      },
+    },
+  });
+
+  for (const conv of closedConversations) {
+    const lastAssistant = await prisma.message.findFirst({
+      where: { conversationId: conv.id, role: "assistant" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        agentTrace: { select: { confidence: true, evidence: true, rulesFired: true } },
+      },
+    });
+
+    const lastAnalyst = await prisma.message.findFirst({
+      where: { conversationId: conv.id, role: "analyst" },
+      orderBy: { createdAt: "desc" },
+      select: { authorUserId: true },
+    });
+
+    const previewMsg = conv.messages[0];
+    const preview = previewMsg ? previewMsg.content.slice(0, 120) : "Sem mensagens";
+
+    const handoffTicketIds = parseHandoffSummary(conv.handoffSummary)?.ticketIds;
+    const linkedTicketId = extractLinkedTicketId(
+      lastAssistant?.agentTrace?.evidence,
+      lastAssistant?.content ?? preview,
+      handoffTicketIds,
+    );
+
+    items.push({
+      conversationId: conv.id,
+      employeeId: conv.user.id,
+      employeeName: conv.user.name,
+      employeeDepartment: conv.user.department,
+      linkedTicketId,
+      preview,
+      previewRole: previewMsg?.role ?? null,
+      state: conv.state,
+      unreadCount: 0,
+      confidenceLast: lastAssistant?.agentTrace?.confidence ?? null,
+      updatedAt: conv.updatedAt.toISOString(),
+      assignedAnalystId: null,
+      assignedAnalystName: null,
+      lastAnalystId: lastAnalyst?.authorUserId ?? null,
+      isHandback: false,
+      needsReview: false,
+      inboxKind: "closed",
+    });
+  }
+
+  return items.sort((a, b) => {
+    const rank = (i: InboxItem) => {
+      if (i.state === "closed") return 2;
+      if (i.inboxKind === "review") return 1;
+      return 0;
+    };
+    return rank(a) - rank(b) || b.updatedAt.localeCompare(a.updatedAt);
+  });
 }
 
 export function buildInboxETag(items: InboxItem[]): string {

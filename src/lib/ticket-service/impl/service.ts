@@ -1,5 +1,6 @@
 import type { DraftOperation, Prisma, Ticket, TicketDraft, TicketUpdate } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { buildProblemHint, resolveDraftOperation } from "@/lib/domain/dedup";
 import { computeDueAt, isBreached } from "@/lib/domain/sla";
 import { getClock } from "@/lib/domain/clock";
 import {
@@ -47,6 +48,7 @@ const OPEN_STATUSES = [
 ] as const;
 
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+const RECENT_RESOLVED_DAYS = 7;
 
 function toSummary(ticket: Ticket): TicketSummary {
   const now = getClock().now();
@@ -330,6 +332,48 @@ export class TicketServiceImpl {
         const check = checkCreatePayload(body);
         if (!check.ok) throw createPayloadError(check);
         const fields: CreateTicketPayload = check.payload;
+
+        if (body.confirmedNew !== true) {
+          const since = new Date(now);
+          since.setDate(since.getDate() - RECENT_RESOLVED_DAYS);
+          const [openRows, recentRows] = await Promise.all([
+            tx.ticket.findMany({
+              where: { requesterId, status: { in: [...OPEN_STATUSES] } },
+              select: { publicId: true, title: true, category: true, description: true },
+            }),
+            tx.ticket.findMany({
+              where: {
+                requesterId,
+                status: "resolved",
+                resolvedAt: { gte: since },
+              },
+              select: { publicId: true, title: true, category: true, description: true },
+            }),
+          ]);
+          const hint = buildProblemHint(fields.title, fields.description);
+          const resolution = resolveDraftOperation(
+            hint,
+            openRows.map((t) => ({
+              id: t.publicId,
+              title: t.title,
+              category: t.category,
+              description: t.description,
+            })),
+            recentRows.map((t) => ({
+              id: t.publicId,
+              title: t.title,
+              category: t.category,
+              description: t.description,
+            })),
+            fields.category,
+          );
+          if (resolution.operation !== "create" && resolution.targetTicketId) {
+            throw new DraftInvalidError(
+              `Chamado duplicado: use ${resolution.operation} em ${resolution.targetTicketId} em vez de abrir um novo.`,
+            );
+          }
+        }
+
         const publicId = await nextTicketPublicId(fields.type);
         ticket = await tx.ticket.create({
           data: {

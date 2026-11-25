@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth/session";
-import { listClosedSessions } from "@/lib/conversation/repository";
+import { listSessionHistory } from "@/lib/conversation/repository";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -11,6 +11,6 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const items = await listClosedSessions(session.user.userId);
+  const items = await listSessionHistory(session.user.userId);
   return NextResponse.json({ items });
 }

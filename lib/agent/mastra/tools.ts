@@ -3,6 +3,19 @@ import { z } from "zod";
 import type { AgentAdapters, AgentUserContext } from "../adapters";
 import { AgentDecisionSchema } from "../schemas";
 import { runTool, type ToolName } from "../tools";
+
+/** Ferramentas expostas na fase de negócio (sem report_decision). */
+export const BUSINESS_TOOL_NAMES: ToolName[] = [
+  "list_open_tickets",
+  "list_recent_resolved",
+  "get_ticket",
+  "search_kb",
+  "create_draft",
+  "update_ticket",
+  "reopen_ticket",
+  "cancel_draft",
+  "transfer_to_analyst",
+];
 import type { ToolExtras } from "../transfer-tool";
 
 export const REPORT_DECISION_TOOL = "report_decision";

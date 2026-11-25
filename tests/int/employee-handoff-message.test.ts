@@ -19,11 +19,15 @@ describe("INT-EMPLOYEE-HANDOFF-MSG", () => {
     employeeId = employee.id;
     analystId = analyst.id;
 
-    const conv = await prisma.conversation.findFirst({
+    let conv = await prisma.conversation.findFirst({
       where: { userId: employeeId, state: { in: ["with_agent", "awaiting_analyst", "with_analyst"] } },
       orderBy: { updatedAt: "desc" },
     });
-    if (!conv) throw new Error("no active conversation for Carla");
+    if (!conv) {
+      conv = await prisma.conversation.create({
+        data: { userId: employeeId, state: "with_agent", sessionSequence: 1, messageCount: 0 },
+      });
+    }
     conversationId = conv.id;
 
     await prisma.conversation.update({

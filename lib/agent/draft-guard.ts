@@ -1,4 +1,4 @@
-import { resolveDraftOperation } from "../../src/lib/domain/dedup";
+import { buildProblemHint, resolveDraftOperation } from "../../src/lib/domain/dedup";
 import {
   classifyPriority,
   isImpactScope,
@@ -28,6 +28,7 @@ export function pickPayload(args: DraftArgs): DraftPayloadBody {
     description: text(args.description),
     priority: args.priority as DraftPayloadBody["priority"],
     affectedScope: args.affectedScope as DraftPayloadBody["affectedScope"],
+    confirmedNew: args.confirmedNew === true ? true : undefined,
   };
 }
 
@@ -76,7 +77,8 @@ export function missingCreateFields(args: DraftArgs): string[] {
 }
 
 async function findDuplicate(
-  title: string,
+  hint: string,
+  problemCategory: string | undefined,
   ctx: AgentUserContext,
   adapters: AgentAdapters,
 ): Promise<DuplicateCandidate | undefined> {
@@ -85,9 +87,10 @@ async function findDuplicate(
     adapters.ticketClient.listRecentResolved(ctx.userId, RECENT_RESOLVED_DAYS),
   ]);
   const resolution = resolveDraftOperation(
-    title,
-    open.map((t) => ({ id: t.id, title: t.title })),
-    recent.map((t) => ({ id: t.id, title: t.title })),
+    hint,
+    open.map((t) => ({ id: t.id, title: t.title, category: t.category })),
+    recent.map((t) => ({ id: t.id, title: t.title, category: t.category })),
+    problemCategory,
   );
   if (resolution.operation === "create" || !resolution.targetTicketId) return undefined;
 
@@ -122,9 +125,15 @@ export async function createDraftGuarded(
     return adapters.ticketClient.createDraft(ctx.userId, operation, payload);
   }
 
-  const title = typeof args.title === "string" ? args.title.trim() : "";
-  if (title && args.confirmedNew !== true) {
-    const duplicate = await findDuplicate(title, ctx, adapters);
+  const hint = buildProblemHint(
+    typeof args.title === "string" ? args.title : undefined,
+    typeof args.description === "string" ? args.description : undefined,
+  );
+  const problemCategory =
+    typeof args.category === "string" ? args.category : undefined;
+
+  if (hint.length >= 3 && args.confirmedNew !== true) {
+    const duplicate = await findDuplicate(hint, problemCategory, ctx, adapters);
     if (duplicate) {
       const failure: ToolFailure = {
         ok: false,
@@ -133,7 +142,7 @@ export async function createDraftGuarded(
         instruction:
           `Pergunte ao funcionário se é o mesmo problema do ${duplicate.targetTicketId}. ` +
           `Se sim, chame create_draft com operation=${duplicate.operation} e targetTicketId; ` +
-          "se não, chame create_draft de novo com confirmedNew=true.",
+          "se não, chame create_draft de novo com confirmedNew=true após a resposta explícita.",
       };
       return failure;
     }
@@ -152,5 +161,6 @@ export async function createDraftGuarded(
     return failure;
   }
 
-  return adapters.ticketClient.createDraft(ctx.userId, "create", withDerivedPriority(args));
+  const payload = withDerivedPriority(args);
+  return adapters.ticketClient.createDraft(ctx.userId, "create", payload);
 }

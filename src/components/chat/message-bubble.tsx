@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon } from "@/components/ui/icons";
-import { actionLabels } from "@/lib/chat/action-labels";
+import { statusLineLabels } from "@/lib/chat/action-labels";
 import type { UiBlock } from "@/lib/conversation/types";
 import { DraftCard, type SaveDraftResult } from "./draft-card";
 import type { DraftBlock } from "./draft-edit";
@@ -64,8 +64,8 @@ function CardBlocks({
 }
 
 /** Linha "Nexo Assist ✓ consultou seus chamados ✓ …" acima da resposta (G-UI-E01). */
-function StatusLine({ actions }: { actions: string[] }) {
-  const labels = actionLabels(actions);
+function StatusLine({ labels }: { labels: string[] }) {
+  if (!labels.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs" data-status-line>
       <span className="font-semibold text-nexo-ink">{ASSISTANT_NAME}</span>
@@ -143,9 +143,12 @@ export function MessageBubble({
 
   const blocks = message.uiBlocks ?? [];
   const quick = blocks.find((b) => b.type === "quick_replies");
+  const statusLabels = statusLineLabels(message.trace?.actions ?? [], message.trace?.rulesFired ?? [], {
+    hasReply: Boolean(message.content.trim() || quick || blocks.length),
+  });
   return (
     <div className="mr-auto w-full space-y-1.5" data-message-role="assistant">
-      <StatusLine actions={message.trace?.actions ?? []} />
+      <StatusLine labels={statusLabels} />
       {message.content.trim() || quick ? (
         <div className="max-w-[75%] rounded-nexo-md border border-nexo-rule bg-white px-3.5 py-2.5 text-sm text-nexo-ink">
           <MessageContent text={message.content} className="whitespace-pre-wrap" />

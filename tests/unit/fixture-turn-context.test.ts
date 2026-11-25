@@ -31,7 +31,7 @@ describe("fixture com contexto de conversa", () => {
   });
 
   it("VPN em dois passos: pergunta a abrangência e só depois cria o rascunho", async () => {
-    const { adapters, calls } = createFakeAdapters();
+    const { adapters, calls } = createFakeAdapters({ openTickets: [] });
 
     const step1 = await runAgentTurn(VPN_MESSAGE, FAKE_CTX, adapters);
     expect(step1.trace.actions).toEqual([]);

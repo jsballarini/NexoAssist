@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { Newsreader, Outfit } from "next/font/google";
+import { Newsreader, Outfit, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit-family" });
+const schibsted = Schibsted_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-schibsted-family",
+  weight: ["400", "500", "600"],
+});
 const newsreader = Newsreader({
   subsets: ["latin"],
   variable: "--font-newsreader-family",
@@ -20,8 +25,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
-      <body className={`${outfit.variable} ${newsreader.variable} font-outfit antialiased`}>
+    <html
+      lang="pt-BR"
+      className={`${outfit.variable} ${schibsted.variable} ${newsreader.variable}`}
+    >
+      <body className="font-outfit antialiased">
         {children}
       </body>
     </html>

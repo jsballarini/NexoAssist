@@ -16,6 +16,7 @@ export type DraftPayloadBody = {
   description?: string;
   priority?: "critical" | "high" | "medium" | "low";
   affectedScope?: "only_me" | "team" | "organization";
+  confirmedNew?: boolean;
 };
 
 export type DraftSummary = {

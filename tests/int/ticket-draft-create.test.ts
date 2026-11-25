@@ -12,11 +12,12 @@ describe("INT-TICKET-01", () => {
     const client = createTicketServiceClient();
     const draft = await client.createDraft(user.id, "create", {
       type: "INC",
-      category: "rede_vpn",
+      category: "outros",
       title: "Test INT-TICKET-01",
-      description: "VPN Windows 11 teste integração",
+      description: "Cenário isolado de integração ticket-draft-create",
       priority: "high",
       affectedScope: "only_me",
+      confirmedNew: true,
     });
 
     expect(draft.draftId).toMatch(/^D-\d+$/);

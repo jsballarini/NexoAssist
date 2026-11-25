@@ -17,24 +17,31 @@ export type FakeCalls = {
 };
 
 /** Adapters em memória que registram com qual `requesterId` cada chamada foi feita. */
-export function createFakeAdapters(): { adapters: AgentAdapters; calls: FakeCalls } {
+export function createFakeAdapters(opts?: {
+  openTickets?: { id: string; title: string; slaBreached?: boolean }[];
+}): { adapters: AgentAdapters; calls: FakeCalls } {
   const calls: FakeCalls = { listOpen: [], createDraft: [],
     transfer: [],
     summaryPatches: [],
     ticketTransfer: [],
   };
+  const defaultOpen = [
+    {
+      id: "INC-1",
+      title: "VPN caiu",
+      statusLabel: "Em atendimento",
+      slaBreached: true,
+    },
+  ];
+  const openTickets = opts?.openTickets ?? defaultOpen;
   const adapters: AgentAdapters = {
     ticketClient: {
       async listOpen(requesterId) {
         calls.listOpen.push(requesterId);
-        return [
-          {
-            id: "INC-1",
-            title: "VPN caiu",
-            statusLabel: "Em atendimento",
-            slaBreached: true,
-          },
-        ] as never;
+        return openTickets.map((t) => ({
+          ...t,
+          statusLabel: "Em atendimento",
+        })) as never;
       },
       async listRecentResolved() {
         return [];

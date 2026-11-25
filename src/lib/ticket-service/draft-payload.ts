@@ -14,6 +14,8 @@ export type DraftPayloadBody = {
   description?: string;
   priority?: TicketPriority;
   affectedScope?: AffectedScope;
+  /** Funcionário confirmou que é problema novo (Anexo A — duplicidade). */
+  confirmedNew?: boolean;
 };
 
 export type DraftSummary = {

@@ -122,9 +122,17 @@ export async function closeConversation(analystId: string, conversationId: strin
   if (!conv) {
     throw new AnalystHandoffError("NOT_FOUND", "Conversa não encontrada", 404);
   }
+  if (conv.state === "closed") {
+    throw new AnalystHandoffError("INVALID_STATE", "Conversa já encerrada", 400);
+  }
   if (conv.state === "with_analyst" && conv.assignedAnalystId !== analystId) {
     throw new ConversationAlreadyAssignedError();
   }
+
+  const analyst = await prisma.user.findUnique({
+    where: { id: analystId },
+    select: { name: true },
+  });
 
   await prisma.conversation.update({
     where: { id: conversationId },
@@ -134,6 +142,11 @@ export async function closeConversation(analystId: string, conversationId: strin
       updatedAt: new Date(),
     },
   });
+
+  await addSystemMessage(
+    conversationId,
+    `${analyst?.name ?? "Analista"} encerrou o atendimento.`,
+  );
 
   return { state: "closed" as const };
 }

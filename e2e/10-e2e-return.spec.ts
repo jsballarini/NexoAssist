@@ -24,6 +24,13 @@ test("E2E-RETURN: devolver → nota sistema", async ({ page }) => {
     page.getByRole("button", { name: "Devolver" }).click(),
   ]);
 
+  await page.goto("/atendente/conversas", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Com o agent" }).click();
+  await expect(page.getByRole("button").filter({ hasText: "Ana Souza" }).first()).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByText(/Agent retomou/i)).toBeVisible();
+
   const login = await page.request.post("/api/auth/login", {
     data: { email: ANA_EMAIL, password: "qualquer-senha" },
   });

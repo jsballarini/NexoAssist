@@ -8,11 +8,31 @@ const ACTIVE_EMPLOYEE_STATES: ConversationState[] = [
   "with_analyst",
 ];
 
+/**
+ * Sessão ativa do funcionário. Prioridade: fila/assumida com analista; depois conversa
+ * devolvida ao Nexo (handback), para o analista acompanhar o mesmo `conversationId`.
+ */
 export async function findActiveConversation(userId: string) {
-  return prisma.conversation.findFirst({
+  const conversations = await prisma.conversation.findMany({
     where: { userId, state: { in: ACTIVE_EMPLOYEE_STATES } },
     orderBy: { updatedAt: "desc" },
   });
+  if (conversations.length === 0) return null;
+
+  const inHumanFlow = conversations.find(
+    (c) => c.state === "with_analyst" || c.state === "awaiting_analyst",
+  );
+  if (inHumanFlow) return inHumanFlow;
+
+  const withAgent = conversations.filter((c) => c.state === "with_agent");
+  for (const c of withAgent) {
+    if (c.handoffSummary != null) return c;
+  }
+  for (const c of withAgent) {
+    if (await hadHumanHandoff(c.id, c.handoffSummary)) return c;
+  }
+
+  return withAgent[0] ?? conversations[0];
 }
 
 export async function createConversation(userId: string, sessionSequence: number) {
@@ -26,17 +46,56 @@ export async function createConversation(userId: string, sessionSequence: number
   });
 }
 
+async function hadHumanHandoff(conversationId: string, handoffSummary: unknown): Promise<boolean> {
+  if (handoffSummary != null) return true;
+  const n = await prisma.message.count({
+    where: { conversationId, role: "analyst" },
+    take: 1,
+  });
+  return n > 0;
+}
+
+/**
+ * Nova sessão do funcionário: encerra só `with_agent` comum (reset do limite de 30).
+ * Conversas em fila/assumidas ou devolvidas ao Nexo após handoff permanecem abertas para o analista.
+ */
 export async function archiveAndCreateNew(userId: string) {
   const actives = await prisma.conversation.findMany({
     where: { userId, state: { in: ACTIVE_EMPLOYEE_STATES } },
-    select: { id: true, sessionSequence: true },
+    select: { id: true, sessionSequence: true, state: true, handoffSummary: true },
   });
+  const toClose: string[] = [];
+  const handbackIds: string[] = [];
+  for (const conv of actives) {
+    if (conv.state !== "with_agent") continue;
+    if (await hadHumanHandoff(conv.id, conv.handoffSummary)) {
+      handbackIds.push(conv.id);
+      continue;
+    }
+    toClose.push(conv.id);
+  }
   const nextSeq = Math.max(0, ...actives.map((c) => c.sessionSequence), 0) + 1;
-  if (actives.length > 0) {
+  if (toClose.length > 0) {
     await prisma.conversation.updateMany({
-      where: { id: { in: actives.map((c) => c.id) } },
+      where: { id: { in: toClose } },
       data: { state: "closed" },
     });
+  }
+  if (handbackIds.length > 0) {
+    const handback = await prisma.conversation.findFirst({
+      where: { id: { in: handbackIds } },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (handback) {
+      return prisma.conversation.update({
+        where: { id: handback.id },
+        data: {
+          messageCount: 0,
+          sessionSequence: nextSeq,
+          updatedAt: new Date(),
+        },
+      });
+    }
   }
   return createConversation(userId, nextSeq);
 }
@@ -126,9 +185,18 @@ export async function getConversationForUser(conversationId: string, userId: str
   });
 }
 
-export async function listClosedSessions(userId: string, limit = 30) {
+/**
+ * Sessões anteriores à ativa: encerradas e conversas ainda abertas (ex. handoff
+ * preservado após **Nova sessão**), para o funcionário consultar no Histórico.
+ */
+export async function listSessionHistory(userId: string, limit = 30) {
+  const active = await findActiveConversation(userId);
   const conversations = await prisma.conversation.findMany({
-    where: { userId, state: "closed" },
+    where: {
+      userId,
+      ...(active ? { id: { not: active.id } } : {}),
+      OR: [{ state: "closed" }, { state: { in: ACTIVE_EMPLOYEE_STATES } }],
+    },
     orderBy: { updatedAt: "desc" },
     take: limit,
     include: {
@@ -153,6 +221,11 @@ export async function listClosedSessions(userId: string, limit = 30) {
       preview,
     };
   });
+}
+
+/** Mantido para compatibilidade; use {@link listSessionHistory}. */
+export async function listClosedSessions(userId: string, limit = 30) {
+  return listSessionHistory(userId, limit);
 }
 
 export async function ensureConversationState(

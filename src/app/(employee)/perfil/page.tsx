@@ -35,7 +35,7 @@ export default async function PerfilPage() {
       <EmployeeTopBar current="Meu perfil" />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[540px] px-4 py-10">
-          <h1 className="font-display text-2xl font-medium text-nexo-ink">Meu perfil</h1>
+          <h1 className="font-newsreader text-2xl font-medium text-nexo-ink">Meu perfil</h1>
           <p className="mt-1 text-sm text-nexo-ink-3">Seus dados de acesso ao service desk de TI.</p>
 
           <dl className="mt-6 divide-y divide-nexo-rule rounded-nexo-lg border border-nexo-rule bg-white shadow-theme-xs">

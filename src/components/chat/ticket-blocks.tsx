@@ -42,7 +42,7 @@ export function TicketCard({ block }: { block: TicketCardBlock }) {
           </span>
         </span>
       </div>
-      <p className="mt-2 font-display text-xl leading-snug font-medium text-nexo-ink">{block.title}</p>
+      <p className="mt-2 font-newsreader text-xl leading-snug font-medium text-nexo-ink">{block.title}</p>
       {block.description ? (
         <p className="mt-1.5 line-clamp-3 text-sm text-nexo-ink-2">{block.description}</p>
       ) : null}

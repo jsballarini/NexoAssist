@@ -17,17 +17,21 @@ async function user(email: string) {
   return u;
 }
 
-const COMPLETE = {
-  type: "INC",
-  category: "software",
-  title: "INT-RULES chamado completo",
-  description: "Descrição original do chamado",
-  priority: "medium",
-  affectedScope: "only_me",
-} as const;
+function uniqueComplete() {
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    type: "INC" as const,
+    category: "software" as const,
+    title: `INT-RULES chamado ${stamp}`,
+    description: `Descrição isolada ${stamp}`,
+    priority: "medium" as const,
+    affectedScope: "only_me" as const,
+    confirmedNew: true,
+  };
+}
 
 async function newTicket(userId: string) {
-  const draft = await client.createDraft(userId, "create", COMPLETE);
+  const draft = await client.createDraft(userId, "create", uniqueComplete());
   createdDrafts.push(draft.draftId);
   const ticket = await client.confirmDraft(userId, draft.draftId);
   createdTickets.push(ticket.id);
@@ -86,7 +90,7 @@ describe("INT-TICKET-RULES G2-TS-01: histórico de complementos", () => {
     }
 
     const detail = await client.getById(ana.id, ticket.id);
-    expect(detail.description).toBe(COMPLETE.description);
+    expect(detail.description).toBe(ticket.description);
     expect(detail.updates.map((u) => u.body)).toEqual([
       "Primeiro complemento",
       "Segundo complemento",

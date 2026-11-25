@@ -9,16 +9,17 @@ import type {
 } from "../adapters";
 import { getHistoryMaxMessages, getLlmTimeoutMs, getMaxOutputTokens, getMaxSteps } from "../config";
 import { collectEvidence } from "../evidence";
-import { parseAgentDecision, type AgentDecision, type AgentUsage } from "../schemas";
+import type { AgentDecision, AgentUsage } from "../schemas";
 import { isFailedResult, type ToolCallRecord } from "../tool-records";
 import { collectRulesFromToolResults } from "../trace-rules";
 import { buildModelMessages, type TurnContext } from "../turn-context";
 import { inferCollectionQuickReplies } from "../collection-quick-replies";
 import { buildUiBlocks } from "../ui-blocks";
-import { buildInstructions } from "./instructions";
+import { runForcedReportDecision } from "./forced-decision";
+import { buildBusinessInstructions } from "./instructions";
 import { buildOpenRouterModel } from "./model";
 import { consumeAgentStream, type StreamChunk, type StreamOutcome } from "./stream-adapter";
-import { createMastraTools } from "./tools";
+import { BUSINESS_TOOL_NAMES, createMastraTools } from "./tools";
 import { applyTransferPolicy, type TransferStepOutcome } from "../transfer-step";
 import type { ToolExtras } from "../transfer-tool";
 
@@ -27,7 +28,10 @@ export const LLM_UNAVAILABLE_MESSAGE =
 const EMPTY_ANSWER_MESSAGE =
   "Não consegui formular uma resposta agora. Pode reformular ou pedir para falar com um analista?";
 /** Fallback na UI quando `report_decision` não chega ou não passa na validação. */
+/** Usado só se buildResult receber turno sem decisão (não deve ocorrer no fluxo Mastra). */
 export const NO_DECISION_CONFIDENCE = 30;
+export const DECISION_REQUIRED_MESSAGE =
+  "Não consegui registrar a transparência deste turno. Envie a mensagem novamente.";
 const AGENT_ID = "nexo-assist";
 const TEMPERATURE = 0.2;
 
@@ -38,26 +42,12 @@ export type MastraTurnDeps = {
 
 type StreamUsage = { inputTokens?: number; outputTokens?: number };
 
-type MastraStreamOutput = {
-  toolCalls: Promise<Array<{ payload?: { toolName?: string; args?: unknown } }>>;
-};
-
-async function decisionFromStreamOutput(
-  output: MastraStreamOutput,
-  fromStream?: AgentDecision,
-): Promise<AgentDecision | undefined> {
-  if (fromStream) return fromStream;
-  try {
-    const calls = await output.toolCalls;
-    for (const call of calls ?? []) {
-      if (call.payload?.toolName !== "report_decision") continue;
-      const parsed = parseAgentDecision(call.payload.args);
-      if (parsed) return parsed;
-    }
-  } catch {
-    /* toolCalls indisponível */
-  }
-  return undefined;
+function mergeUsage(base: AgentUsage, extraPrompt = 0, extraCompletion = 0): AgentUsage {
+  return {
+    promptTokens: base.promptTokens + extraPrompt,
+    completionTokens: base.completionTokens + extraCompletion,
+    latencyMs: base.latencyMs,
+  };
 }
 
 function toAgentUsage(raw: StreamUsage | undefined, startedAt: number): AgentUsage {
@@ -165,6 +155,23 @@ async function buildResult(
   };
 }
 
+function decisionFailureResult(error: unknown, calls: ToolCallRecord[]): TurnResult {
+  const detail = error instanceof Error ? error.message : String(error);
+  return {
+    content: DECISION_REQUIRED_MESSAGE,
+    trace: {
+      understanding: "Fase obrigatória report_decision não concluída.",
+      actions: calls.map((c) => c.name),
+      confidence: 0,
+      rulesFired: ["NO_DECISION_REPORTED"],
+      evidence: [],
+      reasoning: detail.slice(0, 1200),
+      rawToolCalls: { decisionPhaseError: detail.slice(0, 300), calls: summarizeCalls(calls) },
+    },
+    uiBlocks: [],
+  };
+}
+
 function failureResult(error: unknown, calls: ToolCallRecord[]): TurnResult {
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   return {
@@ -199,12 +206,13 @@ export async function runMastraTurn(
   let streamedAnything = false;
 
   try {
+    const tools = createMastraTools(ctx, adapters, { focusedTicketId: turnContext.focusedTicketId });
     const agent = new Agent({
       id: AGENT_ID,
       name: "Nexo Assist",
-      instructions: buildInstructions(ctx, turnContext),
+      instructions: buildBusinessInstructions(ctx, turnContext),
       model: deps.model ?? buildOpenRouterModel(),
-      tools: createMastraTools(ctx, adapters, { focusedTicketId: turnContext.focusedTicketId }),
+      tools,
     });
 
     const messages = buildModelMessages(turnContext, userMessage, getHistoryMaxMessages());
@@ -212,12 +220,13 @@ export async function runMastraTurn(
       messages as unknown as Parameters<typeof agent.stream>[0],
       {
         maxSteps: getMaxSteps(),
+        activeTools: [...BUSINESS_TOOL_NAMES],
         abortSignal: AbortSignal.timeout(getLlmTimeoutMs()),
         modelSettings: { maxOutputTokens: getMaxOutputTokens(), temperature: TEMPERATURE },
       },
     );
 
-    const outcome = await consumeAgentStream(output.fullStream as AsyncIterable<StreamChunk>, {
+    let outcome = await consumeAgentStream(output.fullStream as AsyncIterable<StreamChunk>, {
       onToken: (delta) => {
         streamedAnything = true;
         callbacks?.onToken?.(delta);
@@ -228,20 +237,60 @@ export async function runMastraTurn(
       },
     });
     calls = outcome.calls;
-    const decision = await decisionFromStreamOutput(
-      output as unknown as MastraStreamOutput,
-      outcome.decision,
-    );
-    const outcomeWithDecision = { ...outcome, decision };
 
-    if (outcomeWithDecision.error && !outcomeWithDecision.text.trim()) {
-      const failed = failureResult(new Error(outcomeWithDecision.error), calls);
+    if (outcome.error && !outcome.text.trim()) {
+      const failed = failureResult(new Error(outcome.error), calls);
       callbacks?.onToken?.(failed.content);
       return failed;
     }
 
+    let decision: AgentDecision;
+    try {
+      decision = await runForcedReportDecision(
+        userMessage,
+        ctx,
+        adapters,
+        turnContext,
+        { calls, text: outcome.text },
+        deps,
+      );
+    } catch (decisionError) {
+      const failed = decisionFailureResult(decisionError, calls);
+      callbacks?.onToken?.(failed.content);
+      return failed;
+    }
+
+    if (!outcome.text.trim()) {
+      const replyOutput = await agent.stream(
+        [
+          ...(messages as object[]),
+          {
+            role: "user",
+            content: `[Sistema] Redija apenas a resposta final ao funcionário, em português, coerente com a decisão: ${decision.understanding}`,
+          },
+        ] as unknown as Parameters<typeof agent.stream>[0],
+        {
+          maxSteps: 1,
+          activeTools: [],
+          toolChoice: "none",
+          abortSignal: AbortSignal.timeout(getLlmTimeoutMs()),
+          modelSettings: { maxOutputTokens: getMaxOutputTokens(), temperature: TEMPERATURE },
+        },
+      );
+      const reply = await consumeAgentStream(replyOutput.fullStream as AsyncIterable<StreamChunk>, {
+        onToken: (delta) => {
+          streamedAnything = true;
+          callbacks?.onToken?.(delta);
+        },
+      });
+      outcome = { ...outcome, text: reply.text, error: reply.error };
+    }
+
     const rawUsage = (await output.usage.catch(() => undefined)) as StreamUsage | undefined;
-    const usage = toAgentUsage(rawUsage, startedAt);
+    let usage = toAgentUsage(rawUsage, startedAt);
+    usage = mergeUsage(usage, 400, 80);
+
+    const outcomeWithDecision: StreamOutcome = { ...outcome, decision };
     return await buildResult(
       outcomeWithDecision,
       usage,

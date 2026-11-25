@@ -5,10 +5,22 @@ import { describe, expect, it } from "vitest";
 
 describe("INT-409-01", () => {
   it("segundo analista recebe 409 ao assumir", async () => {
-    const conv = await prisma.conversation.findFirst({
+    let conv = await prisma.conversation.findFirst({
       where: { state: "awaiting_analyst" },
     });
-    if (!conv) throw new Error("seed transfer conv required");
+    if (!conv) {
+      const employee = await prisma.user.findUniqueOrThrow({
+        where: { email: "ana.souza@nexo.com.br" },
+      });
+      conv = await prisma.conversation.create({
+        data: {
+          userId: employee.id,
+          state: "awaiting_analyst",
+          sessionSequence: 1,
+          messageCount: 0,
+        },
+      });
+    }
 
     const rafael = await prisma.user.findUnique({
       where: { email: "rafael.lima@nexo.com.br" },

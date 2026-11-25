@@ -8,6 +8,7 @@ export {
   listMessages,
   getConversationForUser,
   listClosedSessions,
+  listSessionHistory,
 } from "./repository";
 export { subscribeTurn } from "./turn-bus";
 export { formatSse, sseHeaders } from "./sse";

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { prisma } from "@/lib/db";
 import { EMPTY_TURN_CONTEXT } from "../../lib/agent/turn-context";
-import { deleteTicketsByTitlePrefix } from "../support/cleanup";
+import { deletePendingDrafts, deleteTicketsByTitlePrefix } from "../support/cleanup";
 import { runEvalTurn } from "./helpers";
 
 const VPN_MESSAGE = "VPN não conecta no Windows 11, tenho reunião às 14h";
@@ -8,6 +9,19 @@ const VPN_MESSAGE = "VPN não conecta no Windows 11, tenho reunião às 14h";
 describe("EVAL-06", () => {
   beforeAll(async () => {
     await deleteTicketsByTitlePrefix("ana.souza@nexo.com.br", "VPN Windows 11");
+    await deletePendingDrafts("ana.souza@nexo.com.br");
+    const ana = await prisma.user.findUnique({ where: { email: "ana.souza@nexo.com.br" } });
+    if (ana) {
+      await prisma.ticket.deleteMany({
+        where: {
+          requesterId: ana.id,
+          OR: [
+            { title: { contains: "VPN", mode: "insensitive" } },
+            { category: "rede_vpn", status: { in: ["open", "in_progress", "waiting_analyst", "in_service", "approved"] } },
+          ],
+        },
+      });
+    }
   });
 
   it("passo 1: VPN Win11 com reunião → pergunta quem é afetado, sem criar rascunho", async () => {

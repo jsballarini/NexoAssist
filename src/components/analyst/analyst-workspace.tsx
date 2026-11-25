@@ -167,8 +167,12 @@ export function AnalystWorkspace({
   }
 
   async function closeConv() {
-    await runAction("close");
-    setSelectedId(null);
+    if (!selectedId) return;
+    inboxEtag.current = null;
+    await fetch(`/api/analyst/conversations/${selectedId}/close`, { method: "POST" });
+    setFilter("closed");
+    await refreshInbox();
+    await refreshThread();
   }
 
   async function sendAnalyst(content: string) {
@@ -185,6 +189,7 @@ export function AnalystWorkspace({
   const isMine = selected?.assignedAnalystId === analystId;
   const canCompose = threadState === "with_analyst" && isMine;
   const awaiting = headerState === "awaiting_analyst";
+  const isClosed = headerState === "closed";
 
   return (
     <div className="flex h-full min-h-0 w-full bg-white" data-analyst-ready="true">
@@ -224,12 +229,20 @@ export function AnalystWorkspace({
               </p>
             ) : null}
             <ThreadMessages messages={messages} />
-            {awaiting ? (
+            {awaiting && !isClosed ? (
               <TakeoverBar
                 employeeName={selected.employeeName}
                 waitingSince={selected.updatedAt}
                 onAssume={() => void assume()}
               />
+            ) : null}
+            {isClosed ? (
+              <p
+                className="border-t border-nexo-rule bg-nexo-desk px-5 py-3 text-center text-xs text-nexo-ink-3"
+                role="status"
+              >
+                Histórico somente leitura. A conversa está encerrada.
+              </p>
             ) : null}
             <AnalystComposer enabled={canCompose} onSend={sendAnalyst} />
           </>

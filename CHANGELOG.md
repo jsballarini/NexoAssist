@@ -15,11 +15,18 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ### Corrigido
 
+- **Transparência (Mastra):** turno em duas fases — ferramentas de negócio e depois `report_decision` com `toolChoice` obrigatório (sem retry de turno).
+- **Login:** tipografia alinhada ao PNG (Schibsted Grotesk na UI, Newsreader nos títulos, painel 50/50); métricas do rodapé e chip de chamado a partir do banco.
+- **Status line (G-UI-E01):** chips acima da bolha derivados de ferramentas e regras do trace; turnos só com texto exibem “entendeu sua mensagem”.
+- **Histórico do funcionário:** lista sessões encerradas e conversas ainda abertas que não são a sessão ativa (handoff preservado, transferência em fila), consultáveis no seletor **Histórico**.
+- **Nova sessão (funcionário):** não fecha conversas em `awaiting_analyst` / `with_analyst` nem `with_agent` pós-handoff; só encerra chat comum com o Nexo (limite 30).
+- **Fila após devolver ao agent:** conversas devolvidas ao Nexo permanecem na fila no chip **Com o agent** (`isHandback`, contexto "Agent retomou"), não em **Minhas**.
 - **Chat com analista humano (`with_analyst`):** funcionário volta a digitar (placeholder “Mensagem para o analista…”); `POST /api/conversations/active/messages` persiste mensagem sem invocar o agente. Em `awaiting_analyst` o composer continua bloqueado (423).
 - **Dois `next dev` na mesma pasta:** Playwright usa `NEXT_DIST_DIR=.next-playwright` para não corromper `.next` do `npm run dev` (:3000) — evita `ENOENT` em `app-paths-manifest.json` e 500 nas rotas de API.
 
 ### Alterado
 
+- **Duplicidade (G2-RG-03):** heurística com título + descrição + categoria e palavras-chave de TI; `confirmDraft` de `create` bloqueia INC/REQ novo se existir equivalente (salvo `confirmedNew` no rascunho).
 - Rótulos da status line do chat em minúsculas (estilo protótipo); contador “N/30 mensagens nesta sessão”.
 
 ## [0.8.0-m8.3] - 2026-11-25

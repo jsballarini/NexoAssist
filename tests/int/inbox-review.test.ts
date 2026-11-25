@@ -51,10 +51,10 @@ describe("INT-INBOX-REVIEW (G2-AN-01/02): revisão sugerida na fila", () => {
   });
 
   it("a demo semeada deixa a revisão sugerida não vazia e os transferidos vêm primeiro", async () => {
-    const items = await listInboxItems();
-    const firstReview = items.findIndex((i) => i.inboxKind === "review");
+    const active = (await listInboxItems()).filter((i) => i.state !== "closed");
+    const firstReview = active.findIndex((i) => i.inboxKind === "review");
     expect(firstReview).toBeGreaterThanOrEqual(0);
-    expect(items.slice(firstReview).every((i) => i.inboxKind === "review")).toBe(true);
+    expect(active.slice(firstReview).every((i) => i.inboxKind === "review")).toBe(true);
   });
 
   it("o ETag muda quando a revisão sugerida muda", async () => {

@@ -5,8 +5,8 @@ import { createFakeAdapters, FAKE_CTX } from "./helpers/fake-agent";
 const COMPLETE_ARGS = {
   operation: "create",
   type: "INC",
-  category: "rede_vpn",
-  description: "A VPN cai a cada poucos minutos",
+  category: "hardware",
+  description: "Monitor da sala 12 não liga",
   impact: "team",
   urgency: "blocking_work",
 };
@@ -44,9 +44,36 @@ describe("create_draft guardado (G2-RG-01/02/03)", () => {
     expect(calls.createDraft).toHaveLength(0);
   });
 
+  it("devolve DUPLICATE_CANDIDATE pela descrição mesmo com título genérico", async () => {
+    const { adapters, calls } = createFakeAdapters();
+    const result = await runTool(
+      "create_draft",
+      {
+        ...COMPLETE_ARGS,
+        title: "Problema de rede",
+        description: "A VPN cai a cada reconexão",
+        category: "rede_vpn",
+      },
+      FAKE_CTX,
+      adapters,
+    );
+    expect(result).toMatchObject({ ok: false, code: "DUPLICATE_CANDIDATE" });
+    expect(calls.createDraft).toHaveLength(0);
+  });
+
   it("devolve DUPLICATE_CANDIDATE quando há chamado aberto parecido", async () => {
     const { adapters, calls } = createFakeAdapters();
-    const result = await runTool("create_draft", { ...COMPLETE_ARGS, title: "VPN caiu" }, FAKE_CTX, adapters);
+    const result = await runTool(
+      "create_draft",
+      {
+        ...COMPLETE_ARGS,
+        category: "rede_vpn",
+        title: "VPN caiu",
+        description: "A VPN cai a cada poucos minutos",
+      },
+      FAKE_CTX,
+      adapters,
+    );
     expect(result).toMatchObject({
       ok: false,
       code: "DUPLICATE_CANDIDATE",
@@ -59,7 +86,13 @@ describe("create_draft guardado (G2-RG-01/02/03)", () => {
     const { adapters, calls } = createFakeAdapters();
     await runTool(
       "create_draft",
-      { ...COMPLETE_ARGS, title: "VPN caiu", confirmedNew: true },
+      {
+        ...COMPLETE_ARGS,
+        category: "rede_vpn",
+        title: "VPN caiu",
+        description: "A VPN cai a cada poucos minutos",
+        confirmedNew: true,
+      },
       FAKE_CTX,
       adapters,
     );

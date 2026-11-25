@@ -100,7 +100,7 @@ function DraftHeader({ block, actionable }: { block: DraftBlock; actionable: boo
 function DraftSummaryView({ block }: { block: DraftBlock }) {
   return (
     <div className="px-4 pb-4">
-      <p className="mt-2 font-display text-xl leading-snug font-medium text-nexo-ink">{block.title}</p>
+      <p className="mt-2 font-newsreader text-xl leading-snug font-medium text-nexo-ink">{block.title}</p>
       <p className="mt-1.5 text-sm whitespace-pre-wrap text-nexo-ink-2" data-draft-field="Descrição">
         {block.description?.trim() || "—"}
       </p>

@@ -1,32 +1,35 @@
 import type { InboxItem } from "./types";
 
-/** Filtros da fila (protótipo): Todas, Para você, Com o agent, Minhas. */
-export type InboxFilter = "all" | "for_you" | "with_agent" | "mine";
+/** Filtros da fila: ativas + Encerrados (arquivo do analista). */
+export type InboxFilter = "all" | "for_you" | "with_agent" | "mine" | "closed";
 
 export const INBOX_FILTERS: readonly { key: InboxFilter; label: string }[] = [
   { key: "all", label: "Todas" },
   { key: "for_you", label: "Para você" },
   { key: "with_agent", label: "Com o agent" },
   { key: "mine", label: "Minhas" },
+  { key: "closed", label: "Encerrados" },
 ];
 
 /** Tom do ponto colorido da linha de contexto de um item. */
 export type InboxContextTone = "danger" | "warning" | "info" | "success" | "neutral";
 
 /**
- * "Para você" = aguardando analista; "Com o agent" = agent sem segurança (revisão
- * sugerida, baixa confiança); "Minhas" = atribuídas ao analista logado.
+ * "Para você" = aguardando analista; "Com o agent" = revisão sugerida ou devolvida ao
+ * Nexo após handoff; "Minhas" = você assumiu (`with_analyst`).
  */
 export function matchesFilter(item: InboxItem, filter: InboxFilter, analystId: string): boolean {
   switch (filter) {
     case "for_you":
       return item.state === "awaiting_analyst";
     case "with_agent":
-      return item.needsReview;
+      return item.state !== "closed" && (item.needsReview || item.isHandback);
     case "mine":
-      return item.assignedAnalystId === analystId;
+      return item.state !== "closed" && item.assignedAnalystId === analystId;
+    case "closed":
+      return item.state === "closed";
     default:
-      return true;
+      return item.state !== "closed";
   }
 }
 
@@ -50,7 +53,13 @@ export function filterInbox(
 
 /** Contagem por filtro para os chips (ignora a busca). */
 export function countByFilter(items: InboxItem[], analystId: string): Record<InboxFilter, number> {
-  const counts: Record<InboxFilter, number> = { all: 0, for_you: 0, with_agent: 0, mine: 0 };
+  const counts: Record<InboxFilter, number> = {
+    all: 0,
+    for_you: 0,
+    with_agent: 0,
+    mine: 0,
+    closed: 0,
+  };
   for (const item of items) {
     for (const { key } of INBOX_FILTERS) {
       if (matchesFilter(item, key, analystId)) counts[key] += 1;
@@ -64,6 +73,9 @@ export function inboxContext(
   item: InboxItem,
   analystId: string,
 ): { tone: InboxContextTone; label: string } {
+  if (item.state === "closed") {
+    return { tone: "neutral", label: "Sessão encerrada" };
+  }
   if (item.state === "awaiting_analyst") {
     return {
       tone: "danger",
@@ -77,6 +89,10 @@ export function inboxContext(
   if (item.needsReview) {
     const confidence = item.confidenceLast !== null ? ` · confiança ${item.confidenceLast}%` : "";
     return { tone: "warning", label: `Agent pediu ajuda${confidence}` };
+  }
+  if (item.state === "with_agent" && item.lastAnalystId) {
+    const ticket = item.linkedTicketId ? ` · ${item.linkedTicketId}` : "";
+    return { tone: "success", label: `Agent retomou${ticket}` };
   }
   return { tone: "success", label: "Agent atendendo" };
 }
