@@ -27,6 +27,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ### Alterado
 
+- **README:** seção **Arquitetura** (interface → agent → serviços), persistência e `strict`; contagem E2E 16 specs.
+
 - **Duplicidade (G2-RG-03):** heurística com título + descrição + categoria e palavras-chave de TI; `confirmDraft` de `create` bloqueia INC/REQ novo se existir equivalente (salvo `confirmedNew` no rascunho).
 - Rótulos da status line do chat em minúsculas (estilo protótipo); contador “N/30 mensagens nesta sessão”.
 

@@ -30,7 +30,25 @@ Login: [http://localhost:3000/login](http://localhost:3000/login) — funcionár
 
 ## Stack
 
-Next.js 15, Prisma, PostgreSQL, iron-session, agent em `lib/agent/` (OpenRouter-ready), SSE chat.
+Next.js 15 (App Router, **TypeScript `strict`**), Prisma, PostgreSQL, iron-session, agent em `lib/agent/` (Mastra, OpenRouter-ready), SSE chat. Conversas, mensagens, chamados, rascunhos e estados **agente ↔ analista** ficam no Postgres e **sobrevivem a reinício** da aplicação (`docker compose` + volume do banco).
+
+## Arquitetura
+
+Separação em três camadas, como no PRD: a **interface** não fala com o LLM nem grava chamados direto; o **agent** não usa Prisma; mutações de ticket passam sempre pelo **ticket-service** simulado.
+
+```mermaid
+flowchart LR
+  UI[Interface<br/>funcionário e analista] --> API[API Next.js<br/>src/app/api]
+  API --> Dom[conversation + analyst]
+  Dom --> Agent[Agent Mastra<br/>lib/agent]
+  Agent --> TS[ticket-service]
+  Agent --> KB[knowledge-base]
+  TS --> DB[(PostgreSQL)]
+  KB --> DB
+  Dom --> DB
+```
+
+Diagrama detalhado (M5, SSE, polls): [arquitetura-codigo.md](docs/desenvolvimento/arquitetura-codigo.md).
 
 ## Testes
 
@@ -176,7 +194,7 @@ flowchart TD
 | Evals EVAL-01..15 | Cenários do PRD de ponta a ponta no agent | `npm run test:evals` |
 | Evals de variação (G2-QA-01) | Cada intenção (KB, status, abrir, crítico, atualizar, transferir, escopo, privacidade) com 3–5 formulações; valida **ações, regras e blocos**, nunca o texto | `npm run test:evals` |
 | Evals com LLM (opcional) | A mesma matriz com o modelo real e relatório de acurácia por intenção | `npm run test:evals:llm` |
-| E2E (Playwright, 15 specs) | Login, chat, rascunho editável, transferência, console do analista, caos | `npm run test:e2e` |
+| E2E (Playwright, 16 specs) | Login, chat, rascunho editável, transferência, console do analista, handoff, caos | `npm run test:e2e` |
 
 Os evals determinísticos usam fixtures (`AGENT_EVAL_FIXTURES=true`) e rodam no CI sem custo. O eval com LLM é opcional: mede o comportamento real do modelo contra um piso de acurácia (`EVAL_LLM_MIN_ACCURACY`, padrão 0,7). Última medição com `openai/gpt-4o-mini` (35 frases): **77%** — KB, status, atualização, transferência e privacidade em 100%; o ponto fraco é "fora do escopo", em que o modelo recusa mas nem sempre marca `outOfScope` (ver [O que faria com mais tempo](#o-que-faria-com-mais-tempo)).
 
@@ -247,5 +265,5 @@ src/lib/analyst/        # Console analista
 src/lib/conversation/
 src/lib/ticket-service/
 tests/evals/            # EVAL-01..15 + matriz de variações (intent-variations) + LLM opcional
-e2e/                    # 15 specs Playwright
+e2e/                    # 16 specs Playwright
 ```
