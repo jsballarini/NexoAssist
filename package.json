@@ -1,6 +1,6 @@
 {
   "name": "nexo-assist",
-  "version": "0.8.0-m8.2",
+  "version": "0.8.0-m8.3",
   "private": true,
   "scripts": {
     "dev": "next dev",

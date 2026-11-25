@@ -1,7 +1,7 @@
 # Gaps 2 — comportamento real vs PRD v5
 
 **Data:** 2026-11-24  
-**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 entregue em `0.8.0-m8.1`; Etapa 02 em `0.8.0-m8.2`)  
+**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 entregue em `0.8.0-m8.1`; Etapa 02 em `0.8.0-m8.2`; Etapa 03 em `0.8.0-m8.3`)  
 **Baseline:** [PRD v5](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf) + protótipo [nexo/nexo.pen](nexo/nexo.pen)
 
 Complementa [GAPS.md](GAPS.md). O `GAPS.md` mede a entrega contra a especificação interna (02-xx) e marca tudo como resolvido. Este documento mede o **comportamento do código** contra o PRD, com foco nos critérios de avaliação ("Qualidade das decisões", "Condução da conversa", "Transparência").
@@ -204,7 +204,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## D. Interface do funcionário
 
-### G2-UI-01 · M · Cartão de rascunho incompleto — `aberto`
+### G2-UI-01 · M · Cartão de rascunho incompleto — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** O `draft_card` ganhou `ticketType`, `category` e `description` (aditivos; `DraftSummary` também). O `DraftCard` (`src/components/chat/draft-card.tsx`) mostra os seis campos e o SLA previsto com rótulos em português (`ticket-labels.ts`). Testes: `E2E-DRAFT-EDIT`, `draft-edit.test.ts`.
 
 **PRD:** Tela 2 ("rascunho para confirmação"); Anexo A (seis campos obrigatórios).
 
@@ -212,13 +214,17 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 **Aceite:** o cartão mostra os seis campos com rótulos em português (reaproveitar `src/lib/domain/ticket-labels.ts`) e o prazo previsto.
 
-### G2-UI-02 · M · "Editar" rascunho não edita — `aberto`
+### G2-UI-02 · M · "Editar" rascunho não edita — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** Edição real: `PATCH /api/tickets/drafts/:draftId` (`TicketServiceImpl.updateDraft`, valida com `DraftPatchSchema`; só o dono, só `pending` e não expirado) e modo de edição inline no card (Salvar/Descartar edição), que atualiza o bloco na tela. A prioridade é editada diretamente e o SLA é recalculado. Testes: `INT-DRAFT-EDIT`, `E2E-DRAFT-EDIT`.
 
 **Situação:** `handleEditDraft` (`src/components/chat/chat-workspace.tsx`) só copia o título para o campo de mensagem.
 
 **Aceite:** edição dos campos do rascunho (inline ou pedido ao agent com o rascunho em contexto), gerando nova versão do rascunho antes da confirmação.
 
-### G2-UI-03 · B · Oferta de analista ausente na consulta de chamado vencido — `aberto`
+### G2-UI-03 · B · Oferta de analista ausente na consulta de chamado vencido — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** As quick replies do status vêm dos dados reais (`Detalhes do <chamado>`), sem item fixo de FAQ; com chamado vencido a política de transferência acrescenta "Chamar um analista". Testes: `handoff-and-transfer-step.test.ts` e `E2E-STATUS` (botão visível).
 
 **PRD:** Tela 3 ("status com prazo vencido e oferta de chamar um analista").
 
@@ -257,7 +263,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## F. Console do analista
 
-### G2-AN-01 · M · Casos de baixa confiança não chegam ao console — `aberto`
+### G2-AN-01 · M · Casos de baixa confiança não chegam ao console — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** `listInboxItems` inclui conversas `with_agent` cujo último turno tem confiança abaixo de `AGENT_CONFIDENCE_TRANSFER_OFFER` ou a regra `TRANSFER_LOW_CONFIDENCE` (`inboxKind: "review"`, `needsReview`). O console mostra o selo "Agent sem segurança", o aviso de revisão e o `handoffSummary` no cabeçalho da conversa. O seed cria uma conversa de demonstração (Gabriela Rocha). Testes: `INT-INBOX-REVIEW`, `E2E-REVIEW`.
 
 **PRD:** história do analista 2 ("incluindo os casos em que o agent não teve segurança para decidir").
 
@@ -265,7 +273,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 **Aceite:** a fila inclui conversas `with_agent` cuja última confiança ficou abaixo do limiar, com indicador visual "agent sem segurança". Depende de G2-RG-05.
 
-### G2-AN-02 · B · Filtro "Com o agent" sempre vazio — `aberto`
+### G2-AN-02 · B · Filtro "Com o agent" sempre vazio — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** O filtro foi renomeado para "Revisão sugerida" e usa `needsReview`; deixa de ficar vazio graças a G2-AN-01 e ao seed de demonstração.
 
 **Situação:** o filtro `with_agent` em `src/components/analyst/analyst-workspace.tsx` não encontra nada, porque o endpoint não retorna esse estado.
 
@@ -275,7 +285,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## G. Qualidade e entrega
 
-### G2-QA-01 · M · Evals circulares — `aberto`
+### G2-QA-01 · M · Evals circulares — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** Matriz `tests/evals/variations.ts` com 8 intenções e 35 frases validadas por ações, regras e blocos (`intent-variations.test.ts`); fixture e política de transferência ampliados de forma genérica. `npm run test:evals:llm` roda a mesma matriz com o modelo real e imprime a acurácia por intenção (77% com `gpt-4o-mini`; piso configurável).
 
 **PRD:** README deve explicar "como você garantiu a qualidade dessas decisões".
 
@@ -286,7 +298,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Asserções sobre a ação escolhida e as regras aplicadas, não sobre o texto.
 - Execução opcional contra o LLM real (`npm run test:evals:llm`), com relatório de acerto.
 
-### G2-QA-02 · M · README sem as seções exigidas — `aberto`
+### G2-QA-02 · M · README sem as seções exigidas — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** README com "Como o agent decide" (diagrama Mermaid), "Garantia da qualidade", "Escolha do modelo", trade-offs ampliados e "O que faria com mais tempo".
 
 **PRD (Entregáveis, item 2):** como rodar, visão geral da arquitetura, **como o agent decide o que fazer**, **como você garantiu a qualidade dessas decisões**, principais trade-offs e **o que faria com mais tempo**. Requisitos técnicos: **explicar a escolha do modelo**.
 
@@ -294,7 +308,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 **Aceite:** README com uma seção para cada item acima, com diagrama de arquitetura (interface → agent → serviços).
 
-### G2-QA-03 · M · Histórico de commits fora do padrão — `aberto`
+### G2-QA-03 · M · Histórico de commits fora do padrão — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** A Etapa 03 foi entregue em commits pequenos no padrão Conventional Commits (`feat(ticket-service)`, `feat(chat)`, `feat(agent)`, `feat(analyst)`, `test(evals)`, `docs(readme)`).
 
 **PRD:** "commits que contem a história do desenvolvimento". Regra do projeto: Conventional Commits.
 
@@ -302,7 +318,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 **Aceite:** a partir daqui, commits pequenos em Conventional Commits (`feat(agent): ...`, `fix(ticket-service): ...`), um por mudança coerente.
 
-### G2-QA-04 · B · Eficiência e custo por conversa não documentados — `aberto`
+### G2-QA-04 · B · Eficiência e custo por conversa não documentados — `resolvido`
+
+> **Resolução (0.8.0-m8.3):** O trace já registra tokens e latência (0.8.0-m8.1) e a UI os exibe ("Consumo"). O README traz a medição por turno (`test:evals:llm`), a fórmula e a estimativa por conversa (≈ US$ 0,05 para 30 mensagens com `gpt-4o-mini`).
 
 **PRD:** "respostas rápidas e uso consciente do modelo, pensando em custo por conversa".
 

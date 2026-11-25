@@ -6,6 +6,30 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+## [0.8.0-m8.3] - 2026-11-25
+
+### Adicionado
+
+- **Edição de rascunho (G2-UI-02):** `PATCH /api/tickets/drafts/:draftId` e `TicketServiceImpl.updateDraft` (`DraftPatchSchema`; só o dono, só rascunho pendente e não expirado; 400 com `fields`). O `DraftCard` ganhou modo de edição inline.
+- **Cartão de rascunho completo (G2-UI-01):** `DraftSummary` e o bloco `draft_card` expõem, de forma aditiva, `type`/`ticketType`, `category` e `description`; o card mostra os seis campos e o SLA previsto em português.
+- **Fila de revisão sugerida (G2-AN-01/02):** `listInboxItems` inclui conversas com o agent e baixa confiança (`needsReview`, `inboxKind`); selo "Agent sem segurança", filtro "Revisão sugerida" e `handoffSummary` no cabeçalho da conversa; seed de demonstração (`ensureLowConfidenceConversation`).
+- **Trace legível (G2):** regras com rótulo em português (`RULE_LABELS`) e consumo de tokens/latência no chat e no console.
+- **Evals (G2-QA-01):** matriz de 35 frases em 8 intenções (`tests/evals/variations.ts`) validada por ações/regras/blocos e `npm run test:evals:llm` (opcional, com o modelo real e relatório de acurácia).
+- **README (G2-QA-02/04):** "Como o agent decide" (Mermaid), "Garantia da qualidade", "Escolha do modelo", trade-offs, "O que faria com mais tempo" e "Custo por conversa".
+- **Testes:** INT-DRAFT-EDIT, INT-INBOX-REVIEW, unit de `draft-edit`, `review` e `trace-format`; E2E-DRAFT-EDIT (14) e E2E-REVIEW (15).
+
+### Alterado
+
+- As quick replies da consulta de status derivam dos chamados reais; com chamado vencido a política acrescenta "Chamar um analista" (G2-UI-03).
+- Fixture: rascunhos de SAP e de e-mail crítico agora emitem o card de rascunho; o reconhecimento de status, atualização, e-mail e pedido de analista aceita mais formulações. O pedido de analista ("me passa para um humano", "transfere para um atendente") também é reconhecido na política de transferência.
+- O filtro "Com o agent" do console virou "Revisão sugerida"; a fila lista transferências antes das revisões.
+- `vitest.config.ts`: `AGENT_EVAL_FIXTURES` segue `EVAL_USE_LLM` (apenas para `test:evals:llm`).
+
+### Observações
+
+- `G2-QA-05` (deploy público) permanece `adiado`.
+- Medição com `gpt-4o-mini` (35 turnos): ≈ 9.600 tokens de entrada e ≈ 230 de saída por turno; acurácia da matriz 77%.
+
 ## [0.8.0-m8.2] - 2026-11-25
 
 ### Adicionado
