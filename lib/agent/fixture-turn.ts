@@ -1,9 +1,10 @@
 import type { AgentAdapters, AgentUserContext, TurnResult } from "./adapters";
 import { resolveDraftOperation } from "../../src/lib/domain/dedup";
 import {
-  detectOutOfScope,
+  classifyOutOfScope,
   inferRulesFromContent,
   normalizeConfidence,
+  outOfScopeReply,
 } from "../../src/lib/domain/rules";
 import type { UiBlock } from "../../src/lib/conversation/types";
 import type { DraftSummary } from "./draft-types";
@@ -90,12 +91,12 @@ async function matchPlan(
     };
   }
 
-  if (detectOutOfScope(input)) {
+  const scope = classifyOutOfScope(input);
+  if (scope.out) {
     return {
       tools: [],
-      understanding: "Pedido fora do escopo de TI (RH/benefícios).",
-      reply:
-        "Esse assunto é tratado pelo RH, não pelo service desk de TI. Posso ajudar com acesso, VPN, hardware ou software.",
+      understanding: `Pedido fora do escopo de TI (${scope.area}).`,
+      reply: outOfScopeReply(scope.area),
       confidence: 92,
       rulesOverride: ["OUT_OF_SCOPE"],
     };
