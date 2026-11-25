@@ -35,4 +35,5 @@ next-env.d.ts
 docs/0*
 docs/anexos
 docs/execucao
-.cursor*.tsbuildinfo
+.cursor
+*.tsbuildinfo
