@@ -5,14 +5,21 @@ import { loginAsAna } from "./auth";
 const EDITED_TITLE = "VPN Windows 11 - editado no card";
 
 test("E2E-DRAFT-EDIT: card mostra os 6 campos em PT-BR, edita via PATCH e confirma", async ({ page }) => {
+  test.setTimeout(300_000);
   await deleteTicketsByTitlePrefix("ana.souza@nexo.com.br", "VPN Windows 11");
   await deletePendingDrafts("ana.souza@nexo.com.br");
   await loginAsAna(page);
+  await expect(page.getByPlaceholder("Escreva para o Nexo…")).toBeEnabled({ timeout: 15_000 });
 
-  await page.getByPlaceholder("Escreva para o Nexo…").fill(
-    "VPN não conecta no Windows 11, reunião às 14h",
-  );
-  await page.getByRole("button", { name: "Enviar" }).click();
+  const composer = page.getByPlaceholder("Escreva para o Nexo…");
+  await composer.fill("VPN não conecta no Windows 11, reunião às 14h");
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/conversations/active/messages") && r.status() === 202,
+      { timeout: 120_000 },
+    ),
+    page.getByRole("button", { name: "Enviar" }).click(),
+  ]);
   await expect(page.getByRole("button", { name: "Só eu" }).first()).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Só eu" }).first().click();
 

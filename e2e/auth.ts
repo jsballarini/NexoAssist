@@ -22,6 +22,11 @@ export async function loginAsAna(page: Page) {
     `login API ${res.status()}: ${error ?? "erro desconhecido"}`,
   ).toBeTruthy();
 
+  const reset = await page.request.post("/api/dev/reset-employee-chat", {
+    data: { email: ANA_EMAIL },
+  });
+  expect(reset.ok(), `reset-employee-chat ${reset.status()}`).toBeTruthy();
+
   await page.goto("/atendimento", { waitUntil: "domcontentloaded" });
   await page.request.post("/api/conversations/active/new-session");
   await page.reload({ waitUntil: "domcontentloaded" });

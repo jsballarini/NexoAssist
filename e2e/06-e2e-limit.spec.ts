@@ -5,7 +5,9 @@ test("E2E-LIMIT: 30 msgs → nova sessão", async ({ page }) => {
   test.setTimeout(600_000);
   await loginAsAna(page);
   await freshChatSession(page);
-  await expect(page.locator('[data-conversation-state="with_agent"]')).toBeVisible();
+  const chat = page.locator('[data-chat-ready="true"]');
+  await expect(chat).toBeVisible({ timeout: 30_000 });
+  await expect(chat).toHaveAttribute("data-conversation-state", "with_agent");
   await expect(page.getByPlaceholder("Escreva para o Nexo…")).toBeEnabled();
 
   for (let i = 0; i < 30; i++) {

@@ -90,7 +90,7 @@ export function inboxContext(
     const confidence = item.confidenceLast !== null ? ` · confiança ${item.confidenceLast}%` : "";
     return { tone: "warning", label: `Agent pediu ajuda${confidence}` };
   }
-  if (item.state === "with_agent" && item.lastAnalystId) {
+  if (item.state === "with_agent" && (item.isHandback || item.lastAnalystId)) {
     const ticket = item.linkedTicketId ? ` · ${item.linkedTicketId}` : "";
     return { tone: "success", label: `Agent retomou${ticket}` };
   }

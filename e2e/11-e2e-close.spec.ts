@@ -12,8 +12,9 @@ test("E2E-CLOSE: encerrar conversa", async ({ page }) => {
     ),
     page.getByRole("button", { name: "Assumir" }).click(),
   ]);
-  await page.getByRole("button", { name: "Encerrar" }).click();
-  await expect(page.getByText("Selecione uma conversa")).toBeVisible({
+  await page.getByRole("button", { name: "Encerrar sessão" }).click();
+  await expect(page.getByRole("button", { name: "Encerrados", pressed: true })).toBeVisible({
     timeout: 10_000,
   });
+  await expect(page.getByText(/Sessão encerrada/i).first()).toBeVisible();
 });

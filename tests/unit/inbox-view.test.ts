@@ -60,7 +60,7 @@ describe("inbox view", () => {
     });
     expect(matchesFilter(returned, "mine", ME)).toBe(false);
     expect(matchesFilter(returned, "with_agent", ME)).toBe(true);
-    expect(inboxContext(returned, ME).label).toContain("Agent retomou");
+    expect(inboxContext({ ...returned, lastAnalystId: null }, ME).label).toContain("Agent retomou");
   });
 
   it("filters by chip and searches name, preview and linked ticket", () => {

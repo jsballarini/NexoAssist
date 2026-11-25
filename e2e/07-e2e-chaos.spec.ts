@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { deleteTicketsByTitlePrefix } from "../tests/support/cleanup";
+import { deletePendingDrafts, deleteTicketsByTitlePrefix } from "../tests/support/cleanup";
 import { loginAsAna } from "./auth";
 
 test("E2E-CHAOS: outage 503 → UI mensagem", async ({ page }) => {
   await deleteTicketsByTitlePrefix("ana.souza@nexo.com.br", "VPN Windows 11");
+  await deletePendingDrafts("ana.souza@nexo.com.br");
   await loginAsAna(page);
+  await expect(page.getByPlaceholder("Escreva para o Nexo…")).toBeEnabled({ timeout: 15_000 });
 
   await page.getByPlaceholder("Escreva para o Nexo…").fill(
     "VPN não conecta no Windows 11, reunião às 14h",

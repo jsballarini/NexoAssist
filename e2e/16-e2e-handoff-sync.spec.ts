@@ -46,7 +46,9 @@ test("E2E-HANDOFF-SYNC: mensagem do analista aparece no chat da funcionária sem
     await employeeComposer.fill(CARLA_REPLY);
     await carla.page.getByRole("button", { name: "Enviar" }).click();
     await expect(carla.page.getByText(CARLA_REPLY)).toBeVisible();
-    await expect(page.getByText(CARLA_REPLY)).toBeVisible({ timeout: 12_000 });
+    await expect(
+      page.locator('[data-thread-role="user"]').filter({ hasText: CARLA_REPLY }),
+    ).toBeVisible({ timeout: 12_000 });
   } finally {
     await carla.context.close();
   }
