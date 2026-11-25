@@ -82,6 +82,9 @@ function blocksForCall(call: ToolCallRecord): UiBlock[] {
           priority: d.priority,
           dueAtPreview: d.dueAtPreview,
           affectedScope: d.affectedScope,
+          ticketType: d.type,
+          category: d.category,
+          description: d.description,
         },
       ];
     }

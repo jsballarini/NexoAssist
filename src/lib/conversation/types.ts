@@ -14,6 +14,9 @@ export type UiBlock =
       priority: string;
       dueAtPreview: string;
       affectedScope?: string;
+      ticketType?: string;
+      category?: string;
+      description?: string;
     }
   | { type: "kb_chips"; articles: { slug: string; title: string }[] }
   | { type: "confidence"; value: number }

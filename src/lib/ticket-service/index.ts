@@ -17,5 +17,5 @@ export {
 } from "./errors";
 export { shouldSimulateOutage, getChaosRate } from "./chaos";
 export type { TicketDetail, TicketSummary, TicketUpdateEntry } from "./types";
-export type { DraftPayloadBody, DraftSummary } from "./draft-payload";
+export type { DraftPatch, DraftPayloadBody, DraftSummary } from "./draft-payload";
 export { REQUIRED_CREATE_FIELDS, checkCreatePayload } from "./draft-payload";

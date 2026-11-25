@@ -115,6 +115,9 @@ function draftBlocks(d: DraftSummary | undefined, confidence: number): UiBlock[]
       priority: d.priority,
       dueAtPreview: d.dueAtPreview,
       affectedScope: d.affectedScope,
+      ticketType: d.type,
+      category: d.category,
+      description: d.description,
     });
   }
   blocks.push({ type: "confidence", value: confidence });

@@ -16,6 +16,13 @@ export const CreateTicketPayloadSchema = z.object({
 
 export type CreateTicketPayload = z.infer<typeof CreateTicketPayloadSchema>;
 
+/** Edição parcial de um rascunho pendente: só os seis campos, ao menos um, sem extras. */
+export const DraftPatchSchema = CreateTicketPayloadSchema.partial()
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, { message: "Nenhum campo para atualizar" });
+
+export type DraftPatch = z.infer<typeof DraftPatchSchema>;
+
 export const REQUIRED_CREATE_FIELDS = [
   "title",
   "description",

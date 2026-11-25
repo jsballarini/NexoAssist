@@ -24,13 +24,18 @@ export type DraftSummary = {
   dueAtPreview: string;
   affectedScope?: AffectedScope;
   targetTicketId?: string;
+  type?: TicketType;
+  category?: TicketCategory;
+  description?: string;
 };
 
 export {
   CreateTicketPayloadSchema,
+  DraftPatchSchema,
   REQUIRED_CREATE_FIELDS,
   checkCreatePayload,
   type CreatePayloadCheck,
   type CreateTicketPayload,
+  type DraftPatch,
   type RequiredCreateField,
 } from "@/lib/domain/ticket-payload";

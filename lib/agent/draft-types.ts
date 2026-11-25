@@ -26,6 +26,9 @@ export type DraftSummary = {
   dueAtPreview: string;
   affectedScope?: DraftPayloadBody["affectedScope"];
   targetTicketId?: string;
+  type?: DraftPayloadBody["type"];
+  category?: DraftPayloadBody["category"];
+  description?: string;
 };
 
 export type { UiBlock };

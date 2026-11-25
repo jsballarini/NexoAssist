@@ -18,6 +18,8 @@ import {
 } from "../errors";
 import {
   checkCreatePayload,
+  DraftPatchSchema,
+  type DraftPatch,
   type CreateTicketPayload,
   type DraftPayloadBody,
   type DraftSummary,
@@ -141,6 +143,9 @@ function toDraftSummary(draft: TicketDraft, body: DraftPayloadBody, existing?: T
     dueAtPreview: draftDuePreview(draft.operation, body, existing),
     affectedScope: body.affectedScope ?? existing?.affectedScope,
     targetTicketId: body.targetTicketId,
+    type: body.type ?? existing?.type,
+    category: body.category ?? existing?.category,
+    description: body.description,
   };
 }
 
@@ -406,6 +411,44 @@ export class TicketServiceImpl {
       });
       return toDetail({ ...ticket, updates });
     });
+  }
+
+  /**
+   * Edita campos de um rascunho pendente do solicitante (não toca em chamados).
+   * Valida o patch e, em `create`, revalida o payload completo; devolve o rascunho atualizado.
+   */
+  async updateDraft(
+    requesterId: string,
+    draftId: string,
+    patch: DraftPatch,
+  ): Promise<DraftSummary> {
+    guardChaos();
+    const parsed = DraftPatchSchema.safeParse(patch);
+    if (!parsed.success) {
+      const fields = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean))];
+      throw new DraftInvalidError("Campos do rascunho inválidos", fields);
+    }
+
+    const draft = await prisma.ticketDraft.findUnique({ where: { publicId: draftId } });
+    if (!draft) throw new DraftNotFoundError();
+    if (draft.requesterId !== requesterId) throw new TicketForbiddenError();
+    if (draft.status !== "pending") throw new DraftInvalidError("Rascunho já finalizado");
+    if (draft.expiresAt < getClock().now()) throw new DraftExpiredError();
+
+    const merged: DraftPayloadBody = { ...parsePayload(draft.payload), ...parsed.data };
+    if (draft.operation === "create") {
+      const check = checkCreatePayload(merged);
+      if (!check.ok) throw createPayloadError(check);
+    }
+
+    const saved = await prisma.ticketDraft.update({
+      where: { publicId: draftId },
+      data: { payload: merged as object },
+    });
+    const existing = merged.targetTicketId
+      ? ((await prisma.ticket.findUnique({ where: { publicId: merged.targetTicketId } })) ?? undefined)
+      : undefined;
+    return toDraftSummary(saved, merged, existing);
   }
 
   async cancelDraft(requesterId: string, draftId: string): Promise<void> {
