@@ -1,6 +1,7 @@
 "use client";
 
 import { actionLabels } from "@/lib/chat/action-labels";
+import { formatUsage, ruleLabels } from "@/lib/chat/trace-format";
 import type { UiBlock } from "@/lib/conversation/types";
 import { DraftCard, type SaveDraftResult } from "./draft-card";
 import type { DraftBlock } from "./draft-edit";
@@ -212,7 +213,10 @@ export function MessageBubble({
             </ul>
           ) : null}
           <p>Tools: {message.trace.actions.join(", ") || "—"}</p>
-          <p>Regras: {message.trace.rulesFired.join(", ")}</p>
+          <p data-trace-rules>Regras: {ruleLabels(message.trace.rulesFired).join(", ") || "—"}</p>
+          {formatUsage(message.trace.usage) ? (
+            <p data-trace-usage>Consumo: {formatUsage(message.trace.usage)}</p>
+          ) : null}
           <details className="mt-2">
             <summary className="cursor-pointer text-gray-600">Detalhes técnicos</summary>
             <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 p-2 text-[10px] text-gray-700">

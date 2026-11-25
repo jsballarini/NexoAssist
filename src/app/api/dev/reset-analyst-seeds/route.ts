@@ -27,11 +27,15 @@ export async function POST() {
     where: { email: "carla.mendes@nexo.com.br" },
   });
 
+  const gabriela = await prisma.user.findUnique({
+    where: { email: "gabriela.rocha@nexo.com.br" },
+  });
+
   if (!ana || !carla) {
     return NextResponse.json({ error: "Seed users missing" }, { status: 500 });
   }
 
-  await restoreAnalystTransferSeeds(ana.id, carla.id);
+  await restoreAnalystTransferSeeds(ana.id, carla.id, gabriela?.id);
 
   return NextResponse.json({ ok: true });
 }

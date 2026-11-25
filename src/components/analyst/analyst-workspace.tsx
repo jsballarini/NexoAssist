@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { actionLabels } from "@/lib/chat/action-labels";
 import { formatDurationMs, formatRelativeTime, initialsFromName } from "@/lib/analyst/format";
 import type { InboxItem } from "@/lib/analyst/types";
+import { formatUsage, ruleLabels } from "@/lib/chat/trace-format";
+import { HandoffSummaryPanel, type HandoffSummaryView } from "./handoff-summary-panel";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type PollConfig = {
@@ -48,7 +50,7 @@ type TicketSummary = {
   closed: number;
 };
 
-type Filter = "all" | "needs_you" | "with_agent" | "mine";
+type Filter = "all" | "needs_you" | "review" | "mine";
 
 const STATE_LABELS: Record<string, string> = {
   awaiting_analyst: "Aguardando analista",
@@ -61,6 +63,10 @@ const STATE_BADGE_CLASS: Record<string, string> = {
   with_analyst: "bg-blue-100 text-blue-900",
   with_agent: "bg-gray-100 text-gray-700",
 };
+
+/** Selo distinto para "agent sem segurança" (baixa confiança no último turno). */
+const REVIEW_BADGE_CLASS = "bg-rose-100 text-rose-900";
+const REVIEW_BADGE_LABEL = "Agent sem segurança";
 
 export function AnalystWorkspace({
   analystName,
@@ -76,6 +82,7 @@ export function AnalystWorkspace({
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [threadState, setThreadState] = useState<string>("");
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [handoffSummary, setHandoffSummary] = useState<HandoffSummaryView | null>(null);
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [ticketSummary, setTicketSummary] = useState<TicketSummary | null>(null);
   const [traces, setTraces] = useState<TraceItem[]>([]);
@@ -108,7 +115,9 @@ export function AnalystWorkspace({
       messages: ThreadMessage[];
       state: string;
       employeeId: string;
+      handoffSummary?: HandoffSummaryView | null;
     };
+    setHandoffSummary(data.handoffSummary ?? null);
     setMessages(data.messages);
     setThreadState(data.state);
     setEmployeeId(data.employeeId);
@@ -165,8 +174,8 @@ export function AnalystWorkspace({
     return items.filter((i) => {
     if (filter === "needs_you") {
       if (i.state !== "awaiting_analyst") return false;
-    } else if (filter === "with_agent") {
-      if (i.state !== "with_agent") return false;
+    } else if (filter === "review") {
+      if (!i.needsReview) return false;
     } else if (filter === "mine") {
       if (i.assignedAnalystId !== analystId) return false;
     }
@@ -247,7 +256,7 @@ export function AnalystWorkspace({
               [
                 ["all", "Todas"],
                 ["needs_you", "Precisam de você"],
-                ["with_agent", "Com o agent"],
+                ["review", "Revisão sugerida"],
                 ["mine", "Minhas"],
               ] as const
             ).map(([key, label]) => (
@@ -268,6 +277,8 @@ export function AnalystWorkspace({
               <button
                 type="button"
                 data-inbox-state={item.state}
+                data-inbox-kind={item.inboxKind}
+                data-inbox-review={item.needsReview ? "true" : "false"}
                 className={`flex w-full gap-3 border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${selectedId === item.conversationId ? "bg-brand-50" : ""}`}
                 onClick={() => setSelectedId(item.conversationId)}
               >
@@ -284,6 +295,15 @@ export function AnalystWorkspace({
                     ) : null}
                   </span>
                   <p className="line-clamp-2 text-xs text-gray-600">{item.preview}</p>
+                  {item.needsReview ? (
+                    <span
+                      className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${REVIEW_BADGE_CLASS}`}
+                      data-review-badge
+                    >
+                      {REVIEW_BADGE_LABEL}
+                      {item.confidenceLast !== null ? ` · ${item.confidenceLast}%` : ""}
+                    </span>
+                  ) : null}
                   <p className="mt-1 text-xs text-gray-400">
                     {formatRelativeTime(item.updatedAt)}
                   </p>
@@ -313,6 +333,14 @@ export function AnalystWorkspace({
               >
                 {stateLabel}
               </span>
+              {selected.needsReview ? (
+                <span
+                  className={`rounded px-2 py-0.5 text-xs font-medium ${REVIEW_BADGE_CLASS}`}
+                  data-review-badge
+                >
+                  {REVIEW_BADGE_LABEL}
+                </span>
+              ) : null}
               {linkedTicketId ? (
                 <span className="rounded border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800">
                   {linkedTicketId}
@@ -335,6 +363,13 @@ export function AnalystWorkspace({
                 </>
               ) : null}
             </div>
+            {handoffSummary ? <HandoffSummaryPanel summary={handoffSummary} /> : null}
+            {selected.inboxKind === "review" ? (
+              <p className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-900" role="status">
+                Revisão sugerida: a conversa ainda está com o agent, mas o último turno teve baixa confiança
+                ({selected.confidenceLast ?? "—"}%).
+              </p>
+            ) : null}
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
               {messages.map((m) => (
                 <div
@@ -439,6 +474,9 @@ export function AnalystWorkspace({
                     </p>
                   ) : null}
                   <p>Duração: {formatDurationMs(tr.trace.durationMs)}</p>
+                  {formatUsage(tr.trace.usage) ? (
+                    <p data-trace-usage>Consumo: {formatUsage(tr.trace.usage)}</p>
+                  ) : null}
                   {tr.trace.actions.length ? (
                     <div className="flex flex-wrap gap-1">
                       {actionLabels(tr.trace.actions).map((label) => (
@@ -451,7 +489,7 @@ export function AnalystWorkspace({
                       ))}
                     </div>
                   ) : null}
-                  <p>Regras: {tr.trace.rulesFired.join(", ") || "—"}</p>
+                  <p data-trace-rules>Regras: {ruleLabels(tr.trace.rulesFired).join(", ") || "—"}</p>
                   {tr.trace.evidence?.length ? (
                     <ul className="list-inside list-disc">
                       {tr.trace.evidence.map((e, idx) => (

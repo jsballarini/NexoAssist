@@ -1,4 +1,7 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ensureLowConfidenceConversation } from "./low-confidence-seed";
+import { ANA_HANDOFF_SUMMARY } from "./seed-fixtures";
 
 export const ANA_TRANSFER_MARKER = "CONV-ana-transfer";
 const CARLA_SAP_MARKER = "Transferência para analista: acesso SAP urgente.";
@@ -91,6 +94,7 @@ async function restoreOne(
   marker: string,
   messages: SeedMessage[],
   userMessageCount: number,
+  handoffSummary?: Prisma.InputJsonObject,
 ) {
   let conv = await prisma.conversation.findFirst({
     where: {
@@ -152,14 +156,23 @@ async function restoreOne(
 
   await prisma.conversation.update({
     where: { id: conv.id },
-    data: { state: "awaiting_analyst", assignedAnalystId: null },
+    data: {
+      state: "awaiting_analyst",
+      assignedAnalystId: null,
+      ...(handoffSummary ? { handoffSummary } : {}),
+    },
   });
 
   return conv.id;
 }
 
 /** Restaura conversas de transferência da fila do analista (idempotente para E2E). */
-export async function restoreAnalystTransferSeeds(anaUserId: string, carlaUserId: string) {
-  await restoreOne(anaUserId, ANA_TRANSFER_MARKER, ANA_MESSAGES, 2);
+export async function restoreAnalystTransferSeeds(
+  anaUserId: string,
+  carlaUserId: string,
+  lowConfidenceUserId?: string,
+) {
+  await restoreOne(anaUserId, ANA_TRANSFER_MARKER, ANA_MESSAGES, 2, ANA_HANDOFF_SUMMARY);
   await restoreOne(carlaUserId, CARLA_SAP_MARKER, CARLA_MESSAGES, 1);
+  if (lowConfidenceUserId) await ensureLowConfidenceConversation(prisma, lowConfidenceUserId);
 }

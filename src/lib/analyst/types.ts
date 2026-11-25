@@ -1,3 +1,6 @@
+/** `handoff`: conversa transferida/assumida; `review`: com o agent, mas com baixa segurança. */
+export type InboxKind = "handoff" | "review";
+
 export type InboxItem = {
   conversationId: string;
   employeeId: string;
@@ -11,4 +14,7 @@ export type InboxItem = {
   updatedAt: string;
   assignedAnalystId: string | null;
   assignedAnalystName: string | null;
+  /** Último turno do agent com baixa confiança ("agent sem segurança"). */
+  needsReview: boolean;
+  inboxKind: InboxKind;
 };

@@ -7,6 +7,8 @@ import {
   TicketStatus,
   AffectedScope,
 } from "@prisma/client";
+import { ensureLowConfidenceConversation } from "../src/lib/dev/low-confidence-seed";
+import { ANA_HANDOFF_SUMMARY } from "../src/lib/dev/seed-fixtures";
 
 const prisma = new PrismaClient();
 
@@ -318,6 +320,14 @@ async function main() {
     ],
     1,
   );
+
+  await prisma.conversation.updateMany({
+    where: { userId: anaId, state: "awaiting_analyst" },
+    data: { handoffSummary: ANA_HANDOFF_SUMMARY },
+  });
+
+  // Conversa ainda com o agent e baixa confiança: alimenta "Revisão sugerida" no console.
+  await ensureLowConfidenceConversation(prisma, userByEmail.get("gabriela.rocha@nexo.com.br")!);
 
   const existingConv = await prisma.conversation.findFirst({
     where: { userId: anaId, state: "with_agent" },

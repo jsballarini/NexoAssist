@@ -4,13 +4,38 @@ import type { ConversationState } from "@prisma/client";
 
 const INBOX_STATES: ConversationState[] = ["awaiting_analyst", "with_analyst"];
 
+import { getConfidenceTransferOffer } from "@/lib/domain/rules";
 import { extractLinkedTicketId } from "./linked-ticket";
+import { isReviewSuggested, LOW_CONFIDENCE_RULE } from "./review";
 import type { InboxItem } from "./types";
 export type { InboxItem } from "./types";
 
+/**
+ * Fila do analista: conversas transferidas/assumidas e, adicionalmente, conversas ainda
+ * com o agent cujo último turno indica baixa segurança (revisão sugerida).
+ */
 export async function listInboxItems(): Promise<InboxItem[]> {
+  const threshold = getConfidenceTransferOffer();
   const conversations = await prisma.conversation.findMany({
-    where: { state: { in: INBOX_STATES } },
+    where: {
+      OR: [
+        { state: { in: INBOX_STATES } },
+        {
+          state: "with_agent",
+          messages: {
+            some: {
+              role: "assistant",
+              agentTrace: {
+                OR: [
+                  { confidence: { lt: threshold } },
+                  { rulesFired: { array_contains: LOW_CONFIDENCE_RULE } },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    },
     orderBy: { updatedAt: "desc" },
     include: {
       user: { select: { id: true, name: true, department: true } },
@@ -30,9 +55,19 @@ export async function listInboxItems(): Promise<InboxItem[]> {
       where: { conversationId: conv.id, role: "assistant" },
       orderBy: { createdAt: "desc" },
       include: {
-        agentTrace: { select: { confidence: true, evidence: true } },
+        agentTrace: { select: { confidence: true, evidence: true, rulesFired: true } },
       },
     });
+
+    const needsReview = isReviewSuggested(
+      {
+        confidence: lastAssistant?.agentTrace?.confidence,
+        rulesFired: lastAssistant?.agentTrace?.rulesFired as string[] | undefined,
+      },
+      threshold,
+    );
+    const isHandoff = INBOX_STATES.includes(conv.state);
+    if (!isHandoff && !needsReview) continue;
 
     const previewMsg = conv.messages[0];
     const preview = previewMsg
@@ -65,10 +100,13 @@ export async function listInboxItems(): Promise<InboxItem[]> {
       updatedAt: conv.updatedAt.toISOString(),
       assignedAnalystId: conv.assignedAnalystId,
       assignedAnalystName: conv.assignedAnalyst?.name ?? null,
+      needsReview,
+      inboxKind: isHandoff ? "handoff" : "review",
     });
   }
 
-  return items;
+  // Conversas transferidas primeiro; a revisão sugerida vem depois, cada grupo por atividade recente.
+  return items.sort((a, b) => Number(a.inboxKind === "review") - Number(b.inboxKind === "review"));
 }
 
 export function buildInboxETag(items: InboxItem[]): string {
@@ -78,6 +116,8 @@ export function buildInboxETag(items: InboxItem[]): string {
       state: i.state,
       u: i.updatedAt,
       a: i.assignedAnalystId,
+      r: i.needsReview,
+      c: i.confidenceLast,
     })),
   );
   const hash = createHash("sha256").update(payload).digest("hex");
