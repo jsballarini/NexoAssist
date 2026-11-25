@@ -11,8 +11,12 @@ import type { DraftSummary } from "./draft-types";
 import { collectEvidence } from "./evidence";
 import { EMPTY_TURN_CONTEXT, type TurnContext } from "./turn-context";
 import { runTool, type ToolName } from "./tools";
+import type { ToolCallRecord } from "./tool-records";
+import { applyTransferPolicy } from "./transfer-step";
+import { userRequestedAnalyst } from "./transfer-policy";
 import {
   isLegacyUnavailable,
+  isNotFoundResult,
   isToolFailure,
   LEGACY_UNAVAILABLE_QUICK_REPLIES,
   LEGACY_UNAVAILABLE_REPLY,
@@ -62,6 +66,42 @@ function duplicateReply(value: unknown): string | undefined {
   if (!isToolFailure(value) || value.code !== "DUPLICATE_CANDIDATE") return undefined;
   const verb = value.duplicate.operation === "reopen" ? "resolvido recentemente" : "aberto";
   return `Você já tem o chamado ${value.duplicate.targetTicketId} (${verb}) parecido com este. É o mesmo problema?`;
+}
+
+/** Mesma resposta para chamado inexistente e de terceiros (não vaza existência). */
+function notFoundReply(ticketId: string): string {
+  return `Não encontrei o chamado ${ticketId} entre os seus chamados. Confira o número ou peça para ver seus chamados abertos.`;
+}
+
+function notFoundBlocks(confidence: number): UiBlock[] {
+  return [
+    { type: "confidence", value: confidence },
+    { type: "quick_replies", options: ["Ver meus chamados abertos"] },
+  ];
+}
+
+function notFoundPlan(ticketId: string): Plan {
+  return {
+    tools: [],
+    understanding: `Chamado ${ticketId} não está entre os chamados do funcionário.`,
+    reply: notFoundReply(ticketId),
+    confidence: 81,
+    uiBlocks: () => notFoundBlocks(81),
+  };
+}
+
+async function isTicketVisible(
+  adapters: AgentAdapters,
+  ctx: AgentUserContext,
+  publicId: string,
+): Promise<boolean> {
+  try {
+    await adapters.ticketClient.getById(ctx.userId, publicId);
+    return true;
+  } catch (error) {
+    if (isNotFoundResult(toToolFailure(error))) return false;
+    throw error;
+  }
 }
 
 function draftBlocks(d: DraftSummary | undefined, confidence: number): UiBlock[] {
@@ -205,7 +245,7 @@ async function matchPlan(
     };
   }
 
-  if (/preciso falar|falar com (um )?analista|falar com humano|quero um humano/.test(lower)) {
+  if (userRequestedAnalyst(lower)) {
     return {
       tools: [
         {
@@ -384,6 +424,9 @@ async function matchPlan(
     (mentionedTicket && /vencid|analista/.test(lower)) ||
     /chamado vencido.*analista/.test(lower)
   ) {
+    if (mentionedTicket && !(await isTicketVisible(adapters, ctx, mentionedTicket))) {
+      return notFoundPlan(mentionedTicket);
+    }
     const open = mentionedTicket ? [] : await adapters.ticketClient.listOpen(ctx.userId);
     const ticketId = mentionedTicket ?? open.find((t) => t.slaBreached)?.id;
     return {
@@ -391,7 +434,10 @@ async function matchPlan(
         ...(ticketId ? [{ name: "get_ticket" as const, args: { publicId: ticketId } }] : []),
         {
           name: "transfer_to_analyst",
-          args: { reason: "Chamado com SLA vencido — contexto para analista" },
+          args: {
+            reason: "Chamado com SLA vencido — contexto para analista",
+            ...(ticketId ? { ticketId } : {}),
+          },
         },
       ],
       understanding: "Chamado vencido; transferência com contexto.",
@@ -405,6 +451,7 @@ async function matchPlan(
       tools: [{ name: "get_ticket", args: { publicId: mentionedTicket } }],
       understanding: `Usuário consulta andamento do ${mentionedTicket}.`,
       reply: (data) => {
+        if (isNotFoundResult(data[0])) return notFoundReply(mentionedTicket);
         const t = data[0] as {
           id: string;
           title: string;
@@ -416,6 +463,7 @@ async function matchPlan(
       },
       confidence: 81,
       uiBlocks: (data) => {
+        if (isNotFoundResult(data[0])) return notFoundBlocks(81);
         const t = data[0] as {
           id: string;
           title: string;
@@ -512,6 +560,15 @@ async function matchPlan(
     };
   }
 
+  if (/n[ãa]o fa[cç]o ideia|algo estranho (no|com o) (computador|notebook|pc)|sem saber o que (est[aá]|[eé])/.test(lower)) {
+    return {
+      tools: [],
+      understanding: "Pedido vago, sem informação suficiente para agir; confiança muito baixa.",
+      reply: "Não tenho informação suficiente para resolver isso com segurança.",
+      confidence: 28,
+    };
+  }
+
   if (/não sei se é (vpn|rede)|talvez (vpn|rede)|pode ser (vpn|rede)|não tenho certeza/.test(lower)) {
     return {
       tools: [],
@@ -572,6 +629,19 @@ async function matchPlan(
   };
 }
 
+function withQuickReply(blocks: UiBlock[], option: string, confidence: number): UiBlock[] {
+  const existing = blocks.find((b) => b.type === "quick_replies");
+  if (existing && existing.type === "quick_replies") {
+    if (existing.options.includes(option)) return blocks;
+    return blocks.map((b) => (b === existing ? { ...existing, options: [...existing.options, option] } : b));
+  }
+  const confidenceIndex = blocks.findIndex((b) => b.type === "confidence");
+  const reply: UiBlock = { type: "quick_replies", options: [option] };
+  if (blocks.length === 0) return [reply, { type: "confidence", value: confidence }];
+  if (confidenceIndex === -1) return [...blocks, reply];
+  return [...blocks.slice(0, confidenceIndex), reply, ...blocks.slice(confidenceIndex)];
+}
+
 export async function runFixtureTurn(
   userMessage: string,
   ctx: AgentUserContext,
@@ -579,10 +649,12 @@ export async function runFixtureTurn(
   callbacks?: { onToken?: (d: string) => void },
   options?: { emitTokens?: boolean; turnContext?: TurnContext },
 ): Promise<TurnResult> {
+  const turnContext = options?.turnContext ?? EMPTY_TURN_CONTEXT;
+  const extras = { focusedTicketId: turnContext.focusedTicketId };
   let legacyUnavailable = false;
   let plan: Plan;
   try {
-    plan = await matchPlan(userMessage, ctx, adapters, options?.turnContext ?? EMPTY_TURN_CONTEXT);
+    plan = await matchPlan(userMessage, ctx, adapters, turnContext);
   } catch (error) {
     if (!isLegacyUnavailable(toToolFailure(error))) throw error;
     legacyUnavailable = true;
@@ -595,11 +667,13 @@ export async function runFixtureTurn(
   }
   const toolResults: unknown[] = [];
   const actions: string[] = [];
+  const calls: ToolCallRecord[] = [];
 
   for (const t of plan.tools) {
     actions.push(t.name);
-    const result = await runTool(t.name, t.args, ctx, adapters);
+    const result = await runTool(t.name, t.args, ctx, adapters, extras);
     toolResults.push(result);
+    calls.push({ name: t.name, args: t.args, result });
     if (isLegacyUnavailable(result)) {
       legacyUnavailable = true;
       break;
@@ -607,14 +681,41 @@ export async function runFixtureTurn(
   }
 
   const baseRules = plan.rulesOverride ?? inferRulesFromContent(userMessage, actions);
-  const rulesFired = legacyUnavailable ? [...baseRules, "TICKET_LEGACY_UNAVAILABLE"] : baseRules;
+  const confidence = normalizeConfidence(plan.confidence);
+
+  const policy = legacyUnavailable
+    ? undefined
+    : await applyTransferPolicy({
+        userMessage,
+        ctx,
+        adapters,
+        extras,
+        calls,
+        confidence,
+        outOfScope: baseRules.includes("OUT_OF_SCOPE"),
+        understanding: plan.understanding,
+        rulesFired: baseRules,
+      });
+  if (policy?.call) {
+    actions.push(policy.call.name);
+    calls.push(policy.call);
+  }
+
+  const rulesFired = [
+    ...new Set([
+      ...baseRules,
+      ...(legacyUnavailable ? ["TICKET_LEGACY_UNAVAILABLE"] : []),
+      ...(policy?.rules ?? []),
+    ]),
+  ];
   const evidence = collectEvidence(toolResults);
 
-  const content = legacyUnavailable
+  let content = legacyUnavailable
     ? LEGACY_UNAVAILABLE_REPLY
     : typeof plan.reply === "function"
       ? plan.reply(toolResults)
       : plan.reply;
+  if (policy?.notice) content += `\n\n${policy.notice}`;
 
   if (options?.emitTokens !== false) {
     for (const word of content.split(/(\s+)/)) {
@@ -622,12 +723,15 @@ export async function runFixtureTurn(
     }
   }
 
-  const uiBlocks: UiBlock[] = legacyUnavailable
+  let uiBlocks: UiBlock[] = legacyUnavailable
     ? [
         { type: "confidence", value: plan.confidence },
         { type: "quick_replies", options: LEGACY_UNAVAILABLE_QUICK_REPLIES },
       ]
     : (plan.uiBlocks?.(toolResults) ?? [{ type: "confidence", value: plan.confidence }]);
+  if (policy?.offerQuickReply) {
+    uiBlocks = withQuickReply(uiBlocks, policy.offerQuickReply, plan.confidence);
+  }
 
   return {
     content,
@@ -635,14 +739,14 @@ export async function runFixtureTurn(
     trace: {
       understanding: plan.understanding,
       actions,
-      confidence: normalizeConfidence(plan.confidence),
+      confidence,
       rulesFired,
       evidence,
       reasoning:
         actions.length > 0
           ? `Cenário determinístico (CI): ${plan.understanding} Ferramentas: ${actions.join(", ")}.`
           : `Cenário determinístico (CI): ${plan.understanding} Nenhuma ferramenta necessária.`,
-      rawToolCalls: plan.tools,
+      rawToolCalls: calls.map((c) => ({ name: c.name, args: c.args })),
     },
   };
 }

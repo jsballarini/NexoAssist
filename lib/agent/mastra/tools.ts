@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AgentAdapters, AgentUserContext } from "../adapters";
 import { AgentDecisionSchema } from "../schemas";
 import { runTool, type ToolName } from "../tools";
+import type { ToolExtras } from "../transfer-tool";
 
 export const REPORT_DECISION_TOOL = "report_decision";
 
@@ -50,12 +51,16 @@ export function describeToolError(error: unknown): string {
  * Ferramentas do agent Mastra. O solicitante vem sempre de `ctx` (nunca do modelo) e a
  * execução delega a `runTool`, que fala só com os adapters injetados.
  */
-export function createMastraTools(ctx: AgentUserContext, adapters: AgentAdapters) {
+export function createMastraTools(
+  ctx: AgentUserContext,
+  adapters: AgentAdapters,
+  extras: ToolExtras = {},
+) {
   const exec =
     (name: ToolName) =>
     async (args: Record<string, unknown>): Promise<unknown> => {
       try {
-        return await runTool(name, args, ctx, adapters);
+        return await runTool(name, args, ctx, adapters, extras);
       } catch (error) {
         return { error: describeToolError(error) };
       }
@@ -128,8 +133,14 @@ export function createMastraTools(ctx: AgentUserContext, adapters: AgentAdapters
       id: "transfer_to_analyst",
       description:
         "Transfere a conversa para um analista humano e pausa o assistente. " +
-        "Inclua no motivo um resumo do caso.",
-      inputSchema: z.object({ reason: z.string().min(3).max(500) }),
+        "Informe o motivo, o problema em uma frase e o que já foi tentado; se o caso é sobre um chamado, " +
+        "passe ticketId.",
+      inputSchema: z.object({
+        reason: z.string().min(3).max(500),
+        problem: z.string().max(500).optional().describe("O problema do funcionário em uma frase."),
+        stepsTried: z.array(z.string().max(200)).max(10).optional().describe("O que já foi tentado."),
+        ticketId: z.string().optional().describe("ID público do chamado relacionado (INC-/REQ-)."),
+      }),
       execute: exec("transfer_to_analyst"),
     }),
     [REPORT_DECISION_TOOL]: createTool({

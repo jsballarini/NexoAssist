@@ -1,6 +1,7 @@
 import type { AgentAdapters, AgentUserContext } from "./adapters";
 import { createDraftGuarded, pickPayload } from "./draft-guard";
 import { toToolFailure } from "./tool-results";
+import { executeTransfer, type ToolExtras } from "./transfer-tool";
 
 export type ToolName =
   | "list_open_tickets"
@@ -18,6 +19,7 @@ async function execute(
   args: Record<string, unknown>,
   ctx: AgentUserContext,
   adapters: AgentAdapters,
+  extras: ToolExtras,
 ): Promise<unknown> {
   switch (name) {
     case "list_open_tickets":
@@ -49,11 +51,7 @@ async function execute(
       await adapters.ticketClient.cancelDraft(ctx.userId, String(args.draftId ?? ""));
       return { cancelled: true, draftId: args.draftId };
     case "transfer_to_analyst":
-      await adapters.conversationClient.transferToAnalyst(
-        ctx.conversationId,
-        String(args.reason ?? "Solicitação do funcionário"),
-      );
-      return { transferred: true, state: "awaiting_analyst" };
+      return executeTransfer(args, ctx, adapters, extras);
     default:
       throw new Error(`Tool not implemented: ${name}`);
   }
@@ -68,9 +66,10 @@ export async function runTool(
   args: Record<string, unknown>,
   ctx: AgentUserContext,
   adapters: AgentAdapters,
+  extras: ToolExtras = {},
 ): Promise<unknown> {
   try {
-    return await execute(name, args, ctx, adapters);
+    return await execute(name, args, ctx, adapters, extras);
   } catch (error) {
     const failure = toToolFailure(error);
     if (failure) return failure;

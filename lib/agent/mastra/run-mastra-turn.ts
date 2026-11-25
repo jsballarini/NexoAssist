@@ -18,6 +18,8 @@ import { buildInstructions } from "./instructions";
 import { buildOpenRouterModel } from "./model";
 import { consumeAgentStream, type StreamChunk, type StreamOutcome } from "./stream-adapter";
 import { createMastraTools } from "./tools";
+import { applyTransferPolicy, type TransferStepOutcome } from "../transfer-step";
+import type { ToolExtras } from "../transfer-tool";
 
 export const LLM_UNAVAILABLE_MESSAGE =
   "No momento o assistente está indisponível. Tente novamente em instantes ou peça para falar com um analista.";
@@ -66,26 +68,72 @@ function partialTrace(calls: ToolCallRecord[]): TurnTrace {
   };
 }
 
-function buildResult(outcome: StreamOutcome, usage: AgentUsage): TurnResult {
-  const { decision, calls } = outcome;
+type TurnInputs = {
+  userMessage: string;
+  ctx: AgentUserContext;
+  adapters: AgentAdapters;
+  extras: ToolExtras;
+};
+
+/** Política de transferência sem derrubar a resposta se a persistência falhar. */
+async function safeTransferPolicy(
+  input: Parameters<typeof applyTransferPolicy>[0],
+): Promise<TransferStepOutcome> {
+  try {
+    return await applyTransferPolicy(input);
+  } catch {
+    return { decision: { action: "none", reasons: [] }, transferred: false, rules: [] };
+  }
+}
+
+async function buildResult(
+  outcome: StreamOutcome,
+  usage: AgentUsage,
+  inputs: TurnInputs,
+  callbacks?: TurnStreamCallbacks,
+): Promise<TurnResult> {
+  const { decision } = outcome;
   const confidence = decision ? normalizeConfidence(decision.confidence) : NO_DECISION_CONFIDENCE;
-  const trace: TurnTrace = {
-    understanding: decision?.understanding ?? "O modelo não reportou o que entendeu neste turno.",
-    actions: calls.map((c) => c.name),
-    confidence,
-    rulesFired: collectRulesFromToolResults(calls, {
-      outOfScope: decision?.outOfScope,
-      decisionReported: !!decision,
-    }),
-    evidence: collectEvidence(successfulResults(calls)),
-    reasoning: decision?.reasoning ?? "O modelo não reportou justificativa para este turno.",
-    rawToolCalls: summarizeCalls(calls),
-    usage,
-  };
+  const understanding = decision?.understanding ?? "O modelo não reportou o que entendeu neste turno.";
+  const baseRules = collectRulesFromToolResults(outcome.calls, {
+    outOfScope: decision?.outOfScope,
+    decisionReported: !!decision,
+  });
+
+  const policy = await safeTransferPolicy({
+    ...inputs,
+    calls: outcome.calls,
+    confidence: decision ? confidence : undefined,
+    outOfScope: decision?.outOfScope,
+    understanding,
+    rulesFired: baseRules,
+  });
+  const calls = policy.call ? [...outcome.calls, policy.call] : outcome.calls;
+  const rulesFired = [...new Set([...baseRules, ...policy.rules])];
+
+  let content = outcome.text.trim() || EMPTY_ANSWER_MESSAGE;
+  if (policy.notice) {
+    const addition = `\n\n${policy.notice}`;
+    content += addition;
+    callbacks?.onToken?.(addition);
+  }
+  const quickReplies = [
+    ...new Set([...(decision?.quickReplies ?? []), ...(policy.offerQuickReply ? [policy.offerQuickReply] : [])]),
+  ];
+
   return {
-    content: outcome.text.trim() || EMPTY_ANSWER_MESSAGE,
-    trace,
-    uiBlocks: buildUiBlocks(calls, { confidence, quickReplies: decision?.quickReplies }),
+    content,
+    trace: {
+      understanding,
+      actions: calls.map((c) => c.name),
+      confidence,
+      rulesFired,
+      evidence: collectEvidence(successfulResults(calls)),
+      reasoning: decision?.reasoning ?? "O modelo não reportou justificativa para este turno.",
+      rawToolCalls: summarizeCalls(calls),
+      usage,
+    },
+    uiBlocks: buildUiBlocks(calls, { confidence, quickReplies }),
   };
 }
 
@@ -128,7 +176,7 @@ export async function runMastraTurn(
       name: "Nexo Assist",
       instructions: buildInstructions(ctx, turnContext),
       model: deps.model ?? buildOpenRouterModel(),
-      tools: createMastraTools(ctx, adapters),
+      tools: createMastraTools(ctx, adapters, { focusedTicketId: turnContext.focusedTicketId }),
     });
 
     const messages = buildModelMessages(turnContext, userMessage, getHistoryMaxMessages());
@@ -161,7 +209,12 @@ export async function runMastraTurn(
 
     const rawUsage = (await output.usage.catch(() => undefined)) as StreamUsage | undefined;
     const usage = toAgentUsage(rawUsage, startedAt);
-    return buildResult(outcome, usage);
+    return await buildResult(
+      outcome,
+      usage,
+      { userMessage, ctx, adapters, extras: { focusedTicketId: turnContext.focusedTicketId } },
+      callbacks,
+    );
   } catch (error) {
     const result = failureResult(error, calls);
     if (!streamedAnything) callbacks?.onToken?.(result.content);

@@ -4,6 +4,7 @@ import {
   addSystemMessage,
   listMessages,
 } from "@/lib/conversation/repository";
+import { parseHandoffSummary } from "../../../lib/agent/handoff-summary";
 import { ConversationAlreadyAssignedError, AnalystHandoffError } from "./errors";
 
 type TraceUsage = { promptTokens: number; completionTokens: number; latencyMs: number };
@@ -176,6 +177,8 @@ export async function getThreadMessages(
       ? { id: conv.assignedAnalyst.id, name: conv.assignedAnalyst.name }
       : null,
     employeeId: conv.userId,
+    /** Resumo estruturado da última transferência (aditivo; `null` se não houver). */
+    handoffSummary: parseHandoffSummary(conv.handoffSummary) ?? null,
   };
 }
 

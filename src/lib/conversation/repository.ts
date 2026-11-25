@@ -161,6 +161,22 @@ export async function ensureConversationState(
   });
 }
 
+/** Persiste o snapshot do resumo de handoff (um por conversa; a última transferência vence). */
+export async function saveHandoffSummary(conversationId: string, summary: unknown) {
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { handoffSummary: summary as Prisma.InputJsonValue },
+  });
+}
+
+export async function readHandoffSummary(conversationId: string): Promise<unknown> {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { handoffSummary: true },
+  });
+  return conv?.handoffSummary ?? null;
+}
+
 export async function addSystemMessage(conversationId: string, content: string) {
   return prisma.message.create({
     data: {

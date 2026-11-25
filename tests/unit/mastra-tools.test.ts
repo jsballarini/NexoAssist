@@ -69,8 +69,12 @@ describe("createMastraTools", () => {
     const { adapters, calls } = createFakeAdapters();
     const tools = createMastraTools(FAKE_CTX, adapters);
     await tool(tools, "transfer_to_analyst").execute({ reason: "Cliente pediu analista" });
-    expect(calls.transfer).toEqual([
-      { conversationId: FAKE_CTX.conversationId, reason: "Cliente pediu analista" },
+    expect(calls.transfer).toMatchObject([
+      {
+        conversationId: FAKE_CTX.conversationId,
+        reason: "Cliente pediu analista",
+        summary: { reason: "Cliente pediu analista", ticketIds: [] },
+      },
     ]);
   });
 

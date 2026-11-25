@@ -2,6 +2,7 @@ import type { DraftOperation, DraftPayloadBody, DraftSummary } from "./draft-typ
 import type { TicketDetail, TicketSummary } from "../../src/lib/ticket-service/types";
 import type { UiBlock } from "../../src/lib/conversation/types";
 import type { AgentUsage } from "./schemas";
+import type { HandoffSummary } from "./handoff-summary";
 
 export type KbArticleHit = {
   slug: string;
@@ -24,7 +25,10 @@ export type TicketClient = {
 };
 
 export type ConversationClient = {
-  transferToAnalyst(conversationId: string, reason: string): Promise<void>;
+  /** Pausa o agent e entrega a conversa ao analista com o resumo estruturado do caso. */
+  transferToAnalyst(conversationId: string, reason: string, summary?: HandoffSummary): Promise<void>;
+  /** Completa o resumo de uma transferência já feita no turno (confiança, regras, passos). */
+  updateHandoffSummary?(conversationId: string, patch: Partial<HandoffSummary>): Promise<void>;
 };
 
 export type KbSearch = (query: string) => Promise<KbArticleHit[]>;
