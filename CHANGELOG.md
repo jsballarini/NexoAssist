@@ -6,6 +6,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+## [0.8.0-m8.2] - 2026-11-25
+
+### Adicionado
+
+- **Prioridade por impacto × urgência (G2-RG-01):** `classifyPriority` (`src/lib/domain/priority.ts`); `create_draft` recebe `impact`/`urgency` e calcula a prioridade.
+- **Campos obrigatórios sem defaults (G2-RG-02):** validação dos 6 campos em `createDraft` e revalidação em `confirmDraft`; `DRAFT_INCOMPLETE` com os campos faltantes.
+- **Duplicidade em toda criação (G2-RG-03):** pré-checagem em `create_draft` (`DUPLICATE_CANDIDATE`, `confirmedNew`).
+- **Política de transferência (G2-RG-04/05):** `evaluateTransferNeed` — crítico transfere junto do rascunho; SLA vencido e confiança intermediária oferecem "Chamar um analista"; confiança abaixo de `AGENT_CONFIDENCE_TRANSFER_STRONG` transfere; regras `TRANSFER_*` no trace.
+- **Resumo de handoff (G2-RG-06):** `HandoffSummary` em `Conversation.handoffSummary` e em `getThreadMessages` (campo aditivo `handoffSummary`).
+- **Fora de escopo por área (G2-RG-07):** RH, financeiro e facilities, com resposta que nomeia a área.
+- **Resiliência (G2-RS-01):** `createResilientTicketClient` com retry/backoff por env (`TICKET_RETRY_ATTEMPTS`, `TICKET_RETRY_BACKOFF_MS`, `TICKET_RETRY_TURN_BUDGET_MS`); resposta amigável e regra `TICKET_LEGACY_UNAVAILABLE` no trace.
+- **Privacidade (G2-RS-02):** chamado de terceiros e inexistente retornam o mesmo `{ found: false }`.
+- **ticket-service (G2-TS-01/02):** modelo `TicketUpdate` (histórico de complementos) e operação `transfer` (`waiting_analyst` + `transferReason`); migração `20261125000000_ticket_updates_transfer_handoff`.
+- **Testes:** unit (priority, guards, transfer-policy, handoff, resilient-client, legacy-unavailable), INT-TICKET-RULES, INT-HANDOFF-01 e EVAL-PRIV-01.
+
+### Alterado
+
+- **Fluxo VPN em dois passos:** o fixture pergunta "quem é afetado?" e só cria o rascunho após a resposta (EVAL-06, E2E-OPEN e E2E-CHAOS atualizados).
+- `update`/`reopen` acrescentam uma entrada de histórico em vez de sobrescrever a descrição do chamado.
+- Rascunho com campos obrigatórios ausentes ou inválidos responde 400 com a lista aditiva `fields` (ex.: `POST /api/tickets/drafts/:id/confirm`).
+- Os testes de integração de chamados deixaram de depender de estado persistente do seed.
+
 ## [0.8.0-m8.1] - 2026-11-24
 
 ### Adicionado

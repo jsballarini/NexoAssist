@@ -1,7 +1,7 @@
 # Gaps 2 — comportamento real vs PRD v5
 
 **Data:** 2026-11-24  
-**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 entregue em `0.8.0-m8.1`)  
+**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 entregue em `0.8.0-m8.1`; Etapa 02 em `0.8.0-m8.2`)  
 **Baseline:** [PRD v5](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf) + protótipo [nexo/nexo.pen](nexo/nexo.pen)
 
 Complementa [GAPS.md](GAPS.md). O `GAPS.md` mede a entrega contra a especificação interna (02-xx) e marca tudo como resolvido. Este documento mede o **comportamento do código** contra o PRD, com foco nos critérios de avaliação ("Qualidade das decisões", "Condução da conversa", "Transparência").
@@ -87,7 +87,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## B. Regras do service desk (Anexo A)
 
-### G2-RG-01 · M · Classificação de tipo, categoria e prioridade fixa por caso — `aberto`
+### G2-RG-01 · M · Classificação de tipo, categoria e prioridade fixa por caso — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `classifyPriority(impact, urgency)` em `src/lib/domain/priority.ts` (matriz da 02-08); `create_draft` recebe `impact`/`urgency` e deriva a prioridade, ignorando a do modelo. Testes: `priority.test.ts`, `draft-guard.test.ts`.
 
 **PRD:** "A prioridade combina o impacto (quantas pessoas são afetadas) e a urgência (se há um compromisso em risco)".
 
@@ -97,7 +99,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Função de domínio pura `classifyPriority(impact, urgency)` com testes cobrindo a tabela do Anexo A.
 - O agent coleta impacto e urgência e a prioridade final vem dessa função, não de texto livre do modelo.
 
-### G2-RG-02 · M · Campos obrigatórios completados por padrão, sem perguntar — `aberto`
+### G2-RG-02 · M · Campos obrigatórios completados por padrão, sem perguntar — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `CreateTicketPayloadSchema` (`src/lib/domain/ticket-payload.ts`) valida os 6 campos em `createDraft` e revalida em `confirmDraft` sem defaults; a tool devolve `DRAFT_INCOMPLETE` com `missing[]` e o agent pergunta o que falta. Testes: `INT-TICKET-RULES`, `draft-guard.test.ts`.
 
 **PRD:** "todo chamado precisa de título, descrição, tipo, categoria, prioridade e de quem é afetado"; Tela 2 ("perguntas para completar o chamado").
 
@@ -108,7 +112,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - O agent pergunta o que falta (com respostas rápidas) antes de gerar o rascunho.
 - Nenhum default silencioso na confirmação.
 
-### G2-RG-03 · M · Verificação de duplicidade só no caso "notebook lento" — `aberto`
+### G2-RG-03 · M · Verificação de duplicidade só no caso "notebook lento" — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** Pré-checagem de duplicidade dentro de `create_draft` (`lib/agent/draft-guard.ts`): chamado aberto ou resolvido há ≤7 dias com título parecido devolve `DUPLICATE_CANDIDATE`; `confirmedNew=true` cria mesmo assim. Testes: `draft-guard.test.ts`.
 
 **PRD:** "se já existe um chamado aberto sobre o mesmo problema, ele é atualizado, não duplicado. Chamados resolvidos há até 7 dias podem ser reabertos."
 
@@ -118,7 +124,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Toda criação passa pela checagem de duplicidade dentro da ferramenta (não depende do modelo lembrar).
 - Havendo candidato, o agent pergunta "é o mesmo problema do X?" antes de propor update ou reopen.
 
-### G2-RG-04 · M · Transferência automática em casos críticos não ocorre — `aberto`
+### G2-RG-04 · M · Transferência automática em casos críticos não ocorre — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `evaluateTransferNeed` (`lib/agent/transfer-policy.ts`) aplicada ao fim do turno (Mastra e fixture): prioridade `critical` cria o rascunho e chama `transfer_to_analyst` no mesmo turno (regra `TRANSFER_CRITICAL`). Testes: `transfer-policy.test.ts`, `handoff-and-transfer-step.test.ts`.
 
 **PRD:** "Transferência: acontece quando o funcionário pede, em casos críticos, em chamados vencidos ou quando o agent não tem segurança".
 
@@ -126,7 +134,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 **Aceite:** prioridade `critical` dispara transferência (após criar o chamado ou junto do rascunho), com regra registrada no trace.
 
-### G2-RG-05 · M · Transferência por chamado vencido e por baixa confiança não generalizada — `aberto`
+### G2-RG-05 · M · Transferência por chamado vencido e por baixa confiança não generalizada — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** SLA vencido oferece "Chamar um analista"; confiança < `AGENT_CONFIDENCE_TRANSFER_OFFER` oferece e < `AGENT_CONFIDENCE_TRANSFER_STRONG` transfere (`agent_sem_seguranca`). Regras `TRANSFER_*` no trace. Testes: `transfer-policy.test.ts`.
 
 **Situação:**
 - Chamado vencido só é transferido se a mensagem contiver `INC-20311` e "vencid"/"analista".
@@ -137,7 +147,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Consulta a chamado com `slaBreached: true` oferece transferência (Tela 3).
 - Confiança abaixo de `AGENT_CONFIDENCE_TRANSFER_OFFER` oferece transferência; abaixo de `AGENT_CONFIDENCE_TRANSFER_STRONG` transfere e marca o motivo "agent sem segurança".
 
-### G2-RG-06 · M · Transferência sem resumo do caso — `aberto`
+### G2-RG-06 · M · Transferência sem resumo do caso — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `HandoffSummary` (problema, passos, chamados, motivo, confiança, regras) persistido em `Conversation.handoffSummary` (migração `20261125000000_ticket_updates_transfer_handoff`) e exposto de forma aditiva em `getThreadMessages`. Teste: `INT-HANDOFF-01`.
 
 **PRD:** "Leva um resumo do caso"; história do analista 1 ("descrição que não exija perguntar tudo de novo").
 
@@ -147,7 +159,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - A transferência persiste um resumo estruturado (problema, o que já foi tentado, chamados envolvidos, motivo, confiança).
 - O console do analista exibe esse resumo no topo da conversa.
 
-### G2-RG-07 · M · Escopo só detecta RH — `aberto`
+### G2-RG-07 · M · Escopo só detecta RH — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `classifyOutOfScope` cobre RH, financeiro e facilities e a resposta nomeia a área correta (`outOfScopeReply`); instruções do Mastra alinhadas. Testes: `rules-scope.test.ts`, `handoff-and-transfer-step.test.ts`.
 
 **PRD:** "Outros assuntos (RH, financeiro, facilities) são redirecionados."
 
@@ -161,7 +175,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## C. Resiliência e privacidade
 
-### G2-RS-01 · M · Indisponibilidade do legado não tratada no agent — `aberto`
+### G2-RS-01 · M · Indisponibilidade do legado não tratada no agent — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `createResilientTicketClient` (`src/lib/ticket-service/resilient-client.ts`) aplica retry/backoff por env (`TICKET_RETRY_*`) com teto por turno nos adapters do agent; ao esgotar, a tool devolve `TICKET_LEGACY_UNAVAILABLE`, o agent responde de forma amigável e o trace registra a regra. A API HTTP mantém o 503 imediato. Testes: `resilient-client.test.ts`, `legacy-unavailable.test.ts`.
 
 **PRD:** "O sistema de chamados é legado e, de vez em quando, fica indisponível por alguns segundos"; critério *Interface* (estados de erro).
 
@@ -171,7 +187,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Adapter do agent com retry e backoff (decorator sobre `TicketClient`).
 - Esgotadas as tentativas, o agent responde de forma amigável ("o sistema de chamados está instável, tento de novo em instantes") e registra o evento no trace.
 
-### G2-RS-02 · M · Acesso a chamado de terceiro vira erro genérico — `aberto`
+### G2-RS-02 · M · Acesso a chamado de terceiro vira erro genérico — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `TicketForbiddenError`/`TicketNotFoundError` viram `{ found: false, messageKey }` idêntico nos dois casos; o agent nunca confirma a existência de chamado de terceiros. Testes: `draft-guard.test.ts`, `EVAL-PRIV-01`.
 
 **PRD:** "Privacidade: informações de um chamado só podem ser passadas a quem o abriu."
 
@@ -212,7 +230,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## E. Serviço de chamados
 
-### G2-TS-01 · M · Complemento sobrescreve a descrição — `aberto`
+### G2-TS-01 · M · Complemento sobrescreve a descrição — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** Modelo `TicketUpdate` (histórico append-only); `update`/`reopen` acrescentam a entrada e preservam a descrição original. Teste: `INT-TICKET-RULES` e `INT-TICKET-02`.
 
 **PRD:** história do funcionário 3 ("complementar um chamado aberto com novas informações").
 
@@ -223,7 +243,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - O complemento é acrescentado; `lastUpdatedAt` atualizado.
 - Painel do analista e consulta do funcionário mostram o histórico.
 
-### G2-TS-02 · M · Operação "transferir" inexistente no serviço — `aberto`
+### G2-TS-02 · M · Operação "transferir" inexistente no serviço — `resolvido`
+
+> **Resolução (0.8.0-m8.2):** `TicketServiceImpl.transfer` (status `waiting_analyst` + `transferReason`) exposta em `TicketServiceClient`; `transfer_to_analyst` a aciona para o chamado em foco. Teste: `INT-TICKET-RULES`.
 
 **PRD:** "Serviço de chamados simulado ... permitindo consultar, criar, atualizar e **transferir** chamados."
 
