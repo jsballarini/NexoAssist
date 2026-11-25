@@ -423,6 +423,7 @@ export async function runFixtureTurn(
   ctx: AgentUserContext,
   adapters: AgentAdapters,
   callbacks?: { onToken?: (d: string) => void },
+  options?: { emitTokens?: boolean },
 ): Promise<TurnResult> {
   const plan = await matchPlan(userMessage, ctx, adapters);
   const toolResults: unknown[] = [];
@@ -463,8 +464,10 @@ export async function runFixtureTurn(
   const content =
     typeof plan.reply === "function" ? plan.reply(toolResults) : plan.reply;
 
-  for (const word of content.split(/(\s+)/)) {
-    callbacks?.onToken?.(word);
+  if (options?.emitTokens !== false) {
+    for (const word of content.split(/(\s+)/)) {
+      callbacks?.onToken?.(word);
+    }
   }
 
   const uiBlocks = plan.uiBlocks?.(toolResults) ?? [{ type: "confidence", value: plan.confidence }];

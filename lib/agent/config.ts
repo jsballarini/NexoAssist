@@ -17,13 +17,18 @@ export function shouldUseFixtures(): boolean {
   return false;
 }
 
+const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
 export function getOpenRouterConfig() {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   const model = process.env.OPENROUTER_MODEL?.trim();
   if (!apiKey || !model) {
     throw new Error("OPENROUTER_API_KEY e OPENROUTER_MODEL são obrigatórios");
   }
-  return { apiKey, model };
+  const baseUrl = (
+    process.env.OPENROUTER_BASE_URL?.trim() || DEFAULT_OPENROUTER_BASE_URL
+  ).replace(/\/$/, "");
+  return { apiKey, model, baseUrl };
 }
 
 export function getMaxConcurrency(): number {

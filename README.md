@@ -57,6 +57,8 @@ Em `.env`:
 ```env
 OPENROUTER_API_KEY=sk-...
 OPENROUTER_MODEL=openai/gpt-4o-mini
+# opcional — default https://openrouter.ai/api/v1
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 AGENT_EVAL_FIXTURES=false
 LLM_MAX_CONCURRENCY=2
 ```
