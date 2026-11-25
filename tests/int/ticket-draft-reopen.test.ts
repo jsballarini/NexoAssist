@@ -9,14 +9,6 @@ describe("INT-TICKET-03", () => {
     });
     if (!diego) throw new Error("seed required");
 
-    const client = createTicketServiceClient();
-    const draft = await client.createDraft(diego.id, "reopen", {
-      targetTicketId: "INC-20150",
-      title: "Senha SAP bloqueada novamente",
-      description: "Reabertura teste",
-      priority: "medium",
-    });
-
     await prisma.ticket.updateMany({
       where: { publicId: "INC-20150" },
       data: {
@@ -24,6 +16,14 @@ describe("INT-TICKET-03", () => {
         resolvedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
         dueAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
       },
+    });
+
+    const client = createTicketServiceClient();
+    const draft = await client.createDraft(diego.id, "reopen", {
+      targetTicketId: "INC-20150",
+      title: "Senha SAP bloqueada novamente",
+      description: "Reabertura teste",
+      priority: "medium",
     });
 
     const confirmed = await client.confirmDraft(diego.id, draft.draftId);

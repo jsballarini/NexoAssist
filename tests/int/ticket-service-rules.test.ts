@@ -121,11 +121,16 @@ describe("INT-TICKET-RULES G2-TS-02: transfer", () => {
   });
 
   it("não transfere chamado resolvido e exige motivo", async () => {
-    const diego = await user("diego.ramos@nexo.com.br");
-    await expect(client.transfer(diego.id, "INC-20150", "motivo")).rejects.toBeInstanceOf(
+    const ana = await user("ana.souza@nexo.com.br");
+    const ticket = await newTicket(ana.id);
+    await prisma.ticket.update({
+      where: { publicId: ticket.id },
+      data: { status: "resolved", resolvedAt: new Date() },
+    });
+    await expect(client.transfer(ana.id, ticket.id, "motivo")).rejects.toBeInstanceOf(
       TicketInvalidStateError,
     );
-    await expect(client.transfer(diego.id, "INC-20150", "  ")).rejects.toBeInstanceOf(
+    await expect(client.transfer(ana.id, ticket.id, "  ")).rejects.toBeInstanceOf(
       DraftInvalidError,
     );
   });
