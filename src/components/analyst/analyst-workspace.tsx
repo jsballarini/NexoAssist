@@ -7,6 +7,7 @@ import { formatDurationMs, formatRelativeTime, initialsFromName } from "@/lib/an
 import type { InboxItem } from "@/lib/analyst/types";
 import { formatUsage, ruleLabels } from "@/lib/chat/trace-format";
 import { HandoffSummaryPanel, type HandoffSummaryView } from "./handoff-summary-panel";
+import { MessageContent } from "@/components/chat/message-content";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type PollConfig = {
@@ -382,7 +383,7 @@ export function AnalystWorkspace({
                         : "border border-gray-200 bg-white text-gray-800"
                   }`}
                 >
-                  {m.content}
+                  <MessageContent text={m.content} className="whitespace-pre-wrap" />
                 </div>
               ))}
             </div>

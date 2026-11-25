@@ -4,6 +4,7 @@ import { actionLabels } from "@/lib/chat/action-labels";
 import { formatUsage, ruleLabels } from "@/lib/chat/trace-format";
 import type { UiBlock } from "@/lib/conversation/types";
 import { DraftCard, type SaveDraftResult } from "./draft-card";
+import { MessageContent } from "./message-content";
 import type { DraftBlock } from "./draft-edit";
 import type { ChatMessage } from "./use-chat-stream";
 
@@ -190,7 +191,7 @@ export function MessageBubble({
       {!isUser && !isAnalyst && message.trace?.actions?.length ? (
         <StatusLineChips actions={message.trace.actions} />
       ) : null}
-      <p className="whitespace-pre-wrap">{message.content}</p>
+      <MessageContent text={message.content} className="whitespace-pre-wrap" />
       {!isUser && !isAnalyst ? (
         <UiBlocks
           blocks={message.uiBlocks}
