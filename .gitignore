@@ -33,8 +33,5 @@ _tailadmin_tmp
 
 # typescript
 next-env.d.ts
-docs/0*
-docs/anexos
-docs/execucao
 .cursor
 *.tsbuildinfo
