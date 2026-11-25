@@ -1,4 +1,4 @@
-import { AgentDecisionSchema, type AgentDecision } from "../schemas";
+import { parseAgentDecision, type AgentDecision } from "../schemas";
 import type { ToolCallRecord } from "../tool-records";
 import type { ToolName } from "../tools";
 import { REPORT_DECISION_TOOL } from "./tools";
@@ -78,8 +78,8 @@ export async function consumeAgentStream(
         const id = String(p.toolCallId ?? "");
         if (name === REPORT_DECISION_TOOL) {
           decisionIds.add(id);
-          const parsed = AgentDecisionSchema.safeParse(p.args);
-          if (parsed.success) decision = parsed.data;
+          const parsed = parseAgentDecision(p.args ?? p.input);
+          if (parsed) decision = parsed;
           break;
         }
         if (!KNOWN_TOOLS.has(name)) break;
@@ -90,6 +90,11 @@ export async function consumeAgentStream(
         break;
       }
       case "tool-result": {
+        const toolName = String(p.toolName ?? "");
+        if (toolName === REPORT_DECISION_TOOL || decisionIds.has(String(p.toolCallId ?? ""))) {
+          const parsed = parseAgentDecision(p.args ?? p.input);
+          if (parsed) decision = parsed;
+        }
         const record = byId.get(String(p.toolCallId ?? ""));
         if (record) {
           record.result = p.result;

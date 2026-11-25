@@ -39,16 +39,31 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
   const [input, setInput] = useState("");
   const [showLimitModal, setShowLimitModal] = useState(false);
 
-  const refreshMeta = useCallback(async () => {
+  const refreshMeta = useCallback(async (): Promise<ConvMeta | null> => {
     const res = await fetch("/api/conversations/active");
-    if (!res.ok) return;
+    if (!res.ok) return null;
     const data = (await res.json()) as ConvMeta;
     setConversationId(data.conversationId);
     setMeta(data);
     if (data.messageCount >= data.messageLimit) {
       setShowLimitModal(true);
     }
+    return data;
   }, []);
+
+  const applyMessageMeta = useCallback(
+    (patch: {
+      state: ConvMeta["state"];
+      messageCount: number;
+      messageLimit: number;
+    }) => {
+      setMeta((prev) => (prev ? { ...prev, ...patch } : prev));
+      if (patch.messageCount >= patch.messageLimit) {
+        setShowLimitModal(true);
+      }
+    },
+    [],
+  );
 
   const loadSessions = useCallback(async () => {
     const res = await fetch("/api/conversations/sessions");
@@ -77,15 +92,10 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      await refreshMeta();
+      const active = await refreshMeta();
       await loadSessions();
-      if (cancelled) return;
-      const res = await fetch("/api/conversations/active");
-      if (!res.ok || cancelled) return;
-      const data = (await res.json()) as ConvMeta;
-      if (!viewingHistoryId) {
-        await loadHistory(data.conversationId);
-      }
+      if (cancelled || !active || viewingHistoryId) return;
+      await loadHistory(active.conversationId);
     })();
     return () => {
       cancelled = true;
@@ -99,12 +109,12 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
 
   useEffect(() => {
     if (!handoffActive || !conversationId || streaming) return;
-    const tick = () => {
-      void loadHistory(conversationId, { silent: true });
-      void refreshMeta();
+    const tick = async () => {
+      const result = await loadHistory(conversationId, { silent: true });
+      if (result.meta) applyMessageMeta(result.meta);
     };
-    tick();
-    const id = setInterval(tick, handoffPollMs);
+    void tick();
+    const id = setInterval(() => void tick(), handoffPollMs);
     const onVis = () => {
       if (document.visibilityState === "visible") tick();
     };
@@ -113,7 +123,7 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [conversationId, handoffActive, handoffPollMs, loadHistory, refreshMeta, streaming]);
+  }, [conversationId, handoffActive, handoffPollMs, loadHistory, applyMessageMeta, streaming]);
 
   async function handleNewSession() {
     const res = await fetch("/api/conversations/active/new-session", {
@@ -136,11 +146,8 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
 
   async function handleBackToActive() {
     setViewingHistoryId(null);
-    await refreshMeta();
-    const res = await fetch("/api/conversations/active");
-    if (!res.ok) return;
-    const data = (await res.json()) as ConvMeta;
-    await loadHistory(data.conversationId);
+    const active = await refreshMeta();
+    if (active) await loadHistory(active.conversationId);
   }
 
   async function handleSend(text?: string) {

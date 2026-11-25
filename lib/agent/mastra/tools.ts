@@ -147,7 +147,7 @@ export function createMastraTools(
       id: REPORT_DECISION_TOOL,
       description:
         "OBRIGATÓRIA, exatamente uma vez por turno, depois das demais ferramentas e antes da " +
-        "resposta final: registra o que você entendeu, sua confiança (0-100) e o porquê das ações.",
+        "resposta final: registra o que você entendeu, sua confiança como inteiro 0-100 (ex.: 85) e o porquê das ações.",
       inputSchema: AgentDecisionSchema,
       execute: async () => ({ ok: true }),
     }),

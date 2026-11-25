@@ -132,9 +132,9 @@ function StatusLineChips({ actions }: { actions: string[] }) {
   const labels = actionLabels(actions);
   return (
     <div className="mb-2 flex flex-wrap gap-1" data-status-line>
-      {labels.map((label) => (
+      {labels.map((label, i) => (
         <span
-          key={label}
+          key={`${actions[i] ?? "action"}-${i}`}
           className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-800"
         >
           {label}

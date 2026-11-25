@@ -12,7 +12,7 @@ export default async function AnalystConversasPage() {
   const pollConfig = getAnalystPollConfig();
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col">
       <AnalystWorkspace
         analystName={session.user.name}
         analystId={session.user.userId}

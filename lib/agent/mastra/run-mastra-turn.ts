@@ -9,10 +9,11 @@ import type {
 } from "../adapters";
 import { getHistoryMaxMessages, getLlmTimeoutMs, getMaxOutputTokens, getMaxSteps } from "../config";
 import { collectEvidence } from "../evidence";
-import type { AgentUsage } from "../schemas";
+import { parseAgentDecision, type AgentDecision, type AgentUsage } from "../schemas";
 import { isFailedResult, type ToolCallRecord } from "../tool-records";
 import { collectRulesFromToolResults } from "../trace-rules";
 import { buildModelMessages, type TurnContext } from "../turn-context";
+import { inferCollectionQuickReplies } from "../collection-quick-replies";
 import { buildUiBlocks } from "../ui-blocks";
 import { buildInstructions } from "./instructions";
 import { buildOpenRouterModel } from "./model";
@@ -25,7 +26,8 @@ export const LLM_UNAVAILABLE_MESSAGE =
   "No momento o assistente está indisponível. Tente novamente em instantes ou peça para falar com um analista.";
 const EMPTY_ANSWER_MESSAGE =
   "Não consegui formular uma resposta agora. Pode reformular ou pedir para falar com um analista?";
-const NO_DECISION_CONFIDENCE = 30;
+/** Fallback na UI quando `report_decision` não chega ou não passa na validação. */
+export const NO_DECISION_CONFIDENCE = 30;
 const AGENT_ID = "nexo-assist";
 const TEMPERATURE = 0.2;
 
@@ -35,6 +37,28 @@ export type MastraTurnDeps = {
 };
 
 type StreamUsage = { inputTokens?: number; outputTokens?: number };
+
+type MastraStreamOutput = {
+  toolCalls: Promise<Array<{ payload?: { toolName?: string; args?: unknown } }>>;
+};
+
+async function decisionFromStreamOutput(
+  output: MastraStreamOutput,
+  fromStream?: AgentDecision,
+): Promise<AgentDecision | undefined> {
+  if (fromStream) return fromStream;
+  try {
+    const calls = await output.toolCalls;
+    for (const call of calls ?? []) {
+      if (call.payload?.toolName !== "report_decision") continue;
+      const parsed = parseAgentDecision(call.payload.args);
+      if (parsed) return parsed;
+    }
+  } catch {
+    /* toolCalls indisponível */
+  }
+  return undefined;
+}
 
 function toAgentUsage(raw: StreamUsage | undefined, startedAt: number): AgentUsage {
   return {
@@ -118,7 +142,11 @@ async function buildResult(
     callbacks?.onToken?.(addition);
   }
   const quickReplies = [
-    ...new Set([...(decision?.quickReplies ?? []), ...(policy.offerQuickReply ? [policy.offerQuickReply] : [])]),
+    ...new Set([
+      ...(decision?.quickReplies ?? []),
+      ...(policy.offerQuickReply ? [policy.offerQuickReply] : []),
+      ...inferCollectionQuickReplies(calls, content),
+    ]),
   ];
 
   return {
@@ -200,9 +228,14 @@ export async function runMastraTurn(
       },
     });
     calls = outcome.calls;
+    const decision = await decisionFromStreamOutput(
+      output as unknown as MastraStreamOutput,
+      outcome.decision,
+    );
+    const outcomeWithDecision = { ...outcome, decision };
 
-    if (outcome.error && !outcome.text.trim()) {
-      const failed = failureResult(new Error(outcome.error), calls);
+    if (outcomeWithDecision.error && !outcomeWithDecision.text.trim()) {
+      const failed = failureResult(new Error(outcomeWithDecision.error), calls);
       callbacks?.onToken?.(failed.content);
       return failed;
     }
@@ -210,7 +243,7 @@ export async function runMastraTurn(
     const rawUsage = (await output.usage.catch(() => undefined)) as StreamUsage | undefined;
     const usage = toAgentUsage(rawUsage, startedAt);
     return await buildResult(
-      outcome,
+      outcomeWithDecision,
       usage,
       { userMessage, ctx, adapters, extras: { focusedTicketId: turnContext.focusedTicketId } },
       callbacks,

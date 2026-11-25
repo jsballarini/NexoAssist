@@ -31,4 +31,13 @@ export type DraftSummary = {
   description?: string;
 };
 
+export function isDraftSummary(result: unknown): result is DraftSummary {
+  return (
+    !!result &&
+    typeof result === "object" &&
+    typeof (result as DraftSummary).draftId === "string" &&
+    (result as DraftSummary).draftId.length > 0
+  );
+}
+
 export type { UiBlock };

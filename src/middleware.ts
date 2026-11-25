@@ -8,7 +8,7 @@ function apiRateLimit(request: NextRequest): NextResponse | null {
   if (process.env.CHAOS_ENDPOINT_ENABLED === "true") {
     return null;
   }
-  const limit = Number.parseInt(process.env.PROXY_API_RATE_LIMIT_PER_MIN ?? "60", 10);
+  const limit = Number.parseInt(process.env.PROXY_API_RATE_LIMIT_PER_MIN ?? "180", 10);
   if (!Number.isFinite(limit) || limit <= 0) {
     return null;
   }

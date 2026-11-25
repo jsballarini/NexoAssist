@@ -1,6 +1,8 @@
 import type { UiBlock } from "../../src/lib/conversation/types";
-import type { DraftSummary } from "./draft-types";
+import { isDraftSummary, type DraftSummary } from "./draft-types";
 import { isFailedResult, type ToolCallRecord } from "./tool-records";
+
+const DRAFT_TOOL_NAMES = new Set(["create_draft", "update_ticket", "reopen_ticket"]);
 
 type TicketLike = {
   id: string;
@@ -31,7 +33,49 @@ function ticketCard(t: TicketLike): UiBlock {
   };
 }
 
+function draftCardFromSummary(d: DraftSummary): UiBlock {
+  return {
+    type: "draft_card",
+    draftId: d.draftId,
+    operation: d.operation,
+    title: d.title,
+    priority: d.priority,
+    dueAtPreview: d.dueAtPreview,
+    affectedScope: d.affectedScope,
+    ticketType: d.type,
+    category: d.category,
+    description: d.description,
+  };
+}
+
+/**
+ * Um turno pode cancelar e recriar rascunho (instrução do agente). Só o último
+ * rascunho não cancelado deve aparecer na mensagem.
+ */
+export function activeDraftCardsFromCalls(calls: ToolCallRecord[]): UiBlock[] {
+  const cancelled = new Set<string>();
+  for (const call of calls) {
+    if (call.name !== "cancel_draft" || call.error) continue;
+    const fromArgs = typeof call.args.draftId === "string" ? call.args.draftId : "";
+    const fromResult =
+      call.result && typeof call.result === "object"
+        ? String((call.result as { draftId?: unknown }).draftId ?? "")
+        : "";
+    const id = fromArgs || fromResult;
+    if (id) cancelled.add(id);
+  }
+
+  let last: UiBlock | undefined;
+  for (const call of calls) {
+    if (!DRAFT_TOOL_NAMES.has(call.name) || call.error || isFailedResult(call.result)) continue;
+    if (!isDraftSummary(call.result) || cancelled.has(call.result.draftId)) continue;
+    last = draftCardFromSummary(call.result);
+  }
+  return last ? [last] : [];
+}
+
 function blocksForCall(call: ToolCallRecord): UiBlock[] {
+  if (DRAFT_TOOL_NAMES.has(call.name)) return [];
   if (call.error || isFailedResult(call.result)) return [];
   const result = call.result;
 
@@ -68,26 +112,6 @@ function blocksForCall(call: ToolCallRecord): UiBlock[] {
           ]
         : [];
     }
-    case "create_draft":
-    case "update_ticket":
-    case "reopen_ticket": {
-      const d = result as DraftSummary | undefined;
-      if (!d?.draftId) return [];
-      return [
-        {
-          type: "draft_card",
-          draftId: d.draftId,
-          operation: d.operation,
-          title: d.title,
-          priority: d.priority,
-          dueAtPreview: d.dueAtPreview,
-          affectedScope: d.affectedScope,
-          ticketType: d.type,
-          category: d.category,
-          description: d.description,
-        },
-      ];
-    }
     default:
       return [];
   }
@@ -101,7 +125,7 @@ export function buildUiBlocks(
   calls: ToolCallRecord[],
   options: { confidence: number; quickReplies?: string[] },
 ): UiBlock[] {
-  const blocks: UiBlock[] = calls.flatMap(blocksForCall);
+  const blocks: UiBlock[] = [...calls.flatMap(blocksForCall), ...activeDraftCardsFromCalls(calls)];
   if (options.quickReplies && options.quickReplies.length > 0) {
     blocks.push({ type: "quick_replies", options: options.quickReplies });
   }

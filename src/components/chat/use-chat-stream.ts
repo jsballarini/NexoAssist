@@ -38,12 +38,25 @@ export function useChatStream(
   const esRef = useRef<EventSource | null>(null);
 
   const loadHistory = useCallback(
-    async (convId: string, options?: { silent?: boolean }): Promise<boolean> => {
+    async (
+      convId: string,
+      options?: { silent?: boolean },
+    ): Promise<{
+      ok: boolean;
+      meta?: {
+        state: "with_agent" | "awaiting_analyst" | "with_analyst" | "closed";
+        messageCount: number;
+        messageLimit: number;
+      };
+    }> => {
       if (!options?.silent) setHistoryLoading(true);
       try {
         const res = await fetch(`/api/conversations/${convId}/messages`);
-        if (!res.ok) return false;
-        const data = (await res.json()) as { items: ChatMessage[] };
+        if (!res.ok) return { ok: false };
+        const data = (await res.json()) as {
+          items: ChatMessage[];
+          meta?: { state: string; messageCount: number; messageLimit: number };
+        };
         setMessages(
           data.items.map((m) => ({
             id: m.id,
@@ -54,7 +67,7 @@ export function useChatStream(
             trace: m.trace ?? undefined,
           })),
         );
-        return true;
+        return { ok: true, meta: data.meta };
       } finally {
         if (!options?.silent) setHistoryLoading(false);
       }
@@ -75,9 +88,20 @@ export function useChatStream(
       setStreaming(true);
       setDraftAssistant("");
 
-      const activeRes = await fetch("/api/conversations/active");
-      const activeJson = (await activeRes.json()) as { conversationId?: string };
-      const convId = activeJson.conversationId ?? conversationId;
+      let convId = conversationId;
+      if (!convId) {
+        const activeRes = await fetch("/api/conversations/active");
+        if (!activeRes.ok) {
+          setStreaming(false);
+          return {
+            ok: false,
+            message: "Conversa indisponível",
+            status: activeRes.status,
+          };
+        }
+        const activeJson = (await activeRes.json()) as { conversationId?: string };
+        convId = activeJson.conversationId ?? null;
+      }
       if (!convId) {
         setStreaming(false);
         return { ok: false, message: "Conversa indisponível", status: 0 };

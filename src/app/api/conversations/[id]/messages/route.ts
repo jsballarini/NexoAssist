@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth/session";
 import { getConversationForUser, listMessages } from "@/lib/conversation";
+import { MESSAGE_LIMIT } from "@/lib/conversation/types";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -28,6 +29,11 @@ export async function GET(request: Request, { params }: Params) {
   const messages = await listMessages(conversationId, since);
   const analystFallbackName = conv.assignedAnalyst?.name ?? null;
   return NextResponse.json({
+    meta: {
+      state: conv.state,
+      messageCount: conv.messageCount,
+      messageLimit: MESSAGE_LIMIT,
+    },
     items: messages.map((m) => ({
       id: m.id,
       role: m.role,

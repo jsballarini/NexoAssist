@@ -236,12 +236,12 @@ export function AnalystWorkspace({
   const linkedTicketId = selected?.linkedTicketId;
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] w-full" data-analyst-ready="true">
+    <div className="flex h-full min-h-0 w-full" data-analyst-ready="true">
       <aside className="flex w-16 shrink-0 flex-col items-center border-r border-gray-200 bg-gray-900 py-4 text-white">
         <span className="text-xs font-semibold">Nexo</span>
       </aside>
 
-      <aside className="flex w-[380px] shrink-0 flex-col border-r border-gray-200 bg-white">
+      <aside className="flex min-h-0 w-[380px] shrink-0 flex-col border-r border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-4 py-3">
           <p className="font-semibold text-gray-900">Fila</p>
           <p className="text-xs text-gray-500">Olá, {analystName}</p>
@@ -315,7 +315,7 @@ export function AnalystWorkspace({
         </ul>
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col bg-gray-50">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-gray-50">
         {selected ? (
           <>
             <div
@@ -411,7 +411,7 @@ export function AnalystWorkspace({
       </section>
 
       <aside
-        className="flex w-[340px] shrink-0 flex-col border-l border-gray-200 bg-white"
+        className="flex min-h-0 w-[340px] shrink-0 flex-col border-l border-gray-200 bg-white"
         data-ticket-panel
       >
         <p className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900">
