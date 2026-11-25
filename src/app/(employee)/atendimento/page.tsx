@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth/session";
 import { ChatWorkspace } from "@/components/chat/chat-workspace";
+import { getAnalystPollConfig } from "@/lib/analyst/poll-config";
 import { redirect } from "next/navigation";
 
 export default async function AtendimentoPage() {
@@ -8,6 +9,8 @@ export default async function AtendimentoPage() {
     redirect("/login");
   }
 
+  const { employeeHandoffPollMs } = getAnalystPollConfig();
+
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 border-b border-gray-200 px-8 py-4">
@@ -15,7 +18,7 @@ export default async function AtendimentoPage() {
         <h1 className="mt-1 text-xl font-semibold text-gray-900">Atendimento</h1>
         <p className="mt-1 text-sm text-green-600">Assistente online</p>
       </header>
-      <ChatWorkspace />
+      <ChatWorkspace handoffPollMs={employeeHandoffPollMs} />
     </main>
   );
 }

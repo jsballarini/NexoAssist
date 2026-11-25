@@ -7,7 +7,8 @@ import { blockFromSummary, type DraftBlock } from "./draft-edit";
 
 export type ChatMessage = {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "analyst";
+  authorName?: string;
   content: string;
   uiBlocks?: UiBlock[];
   trace?: {
@@ -36,26 +37,30 @@ export function useChatStream(
   const [toast, setToast] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
-  const loadHistory = useCallback(async (convId: string): Promise<boolean> => {
-    setHistoryLoading(true);
-    try {
-      const res = await fetch(`/api/conversations/${convId}/messages`);
-      if (!res.ok) return false;
-      const data = (await res.json()) as { items: ChatMessage[] };
-      setMessages(
-        data.items.map((m) => ({
-          id: m.id,
-          role: m.role as ChatMessage["role"],
-          content: m.content,
-          uiBlocks: m.uiBlocks,
-          trace: m.trace ?? undefined,
-        })),
-      );
-      return true;
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, []);
+  const loadHistory = useCallback(
+    async (convId: string, options?: { silent?: boolean }): Promise<boolean> => {
+      if (!options?.silent) setHistoryLoading(true);
+      try {
+        const res = await fetch(`/api/conversations/${convId}/messages`);
+        if (!res.ok) return false;
+        const data = (await res.json()) as { items: ChatMessage[] };
+        setMessages(
+          data.items.map((m) => ({
+            id: m.id,
+            role: m.role as ChatMessage["role"],
+            authorName: m.authorName,
+            content: m.content,
+            uiBlocks: m.uiBlocks,
+            trace: m.trace ?? undefined,
+          })),
+        );
+        return true;
+      } finally {
+        if (!options?.silent) setHistoryLoading(false);
+      }
+    },
+    [],
+  );
 
   const sendMessage = useCallback(
     async (content: string): Promise<SendResult> => {

@@ -165,6 +165,7 @@ export function MessageBubble({
   }
 
   const isUser = message.role === "user";
+  const isAnalyst = message.role === "analyst";
   const quick =
     message.uiBlocks?.find((b) => b.type === "quick_replies") as
       | Extract<UiBlock, { type: "quick_replies" }>
@@ -175,14 +176,22 @@ export function MessageBubble({
       className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
         isUser
           ? "ml-auto bg-brand-600 text-white"
-          : "mr-auto border border-gray-200 bg-white text-gray-800"
+          : isAnalyst
+            ? "mr-auto bg-blue-100 text-blue-900"
+            : "mr-auto border border-gray-200 bg-white text-gray-800"
       }`}
+      data-message-role={message.role}
     >
-      {!isUser && message.trace?.actions?.length ? (
+      {isAnalyst ? (
+        <p className="mb-1 text-[10px] font-medium tracking-wide text-blue-800" data-analyst-label>
+          {message.authorName ?? "Analista"}
+        </p>
+      ) : null}
+      {!isUser && !isAnalyst && message.trace?.actions?.length ? (
         <StatusLineChips actions={message.trace.actions} />
       ) : null}
       <p className="whitespace-pre-wrap">{message.content}</p>
-      {!isUser ? (
+      {!isUser && !isAnalyst ? (
         <UiBlocks
           blocks={message.uiBlocks}
           onConfirmDraft={onConfirmDraft}
@@ -191,7 +200,7 @@ export function MessageBubble({
           onQuickReply={onQuickReply}
         />
       ) : null}
-      {!isUser && message.trace ? (
+      {!isUser && !isAnalyst && message.trace ? (
         <details className="mt-2 text-xs text-gray-500">
           <summary className="cursor-pointer">Trace</summary>
           <p className="mt-1 text-gray-700">{message.trace.understanding}</p>
@@ -225,7 +234,7 @@ export function MessageBubble({
           </details>
         </details>
       ) : null}
-      {!isUser && quick && onQuickReply ? (
+      {!isUser && !isAnalyst && quick && onQuickReply ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {quick.options.map((opt) => (
             <button

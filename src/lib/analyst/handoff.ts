@@ -135,7 +135,7 @@ export async function postAnalystMessage(
     );
   }
 
-  const msg = await addAnalystMessage(conversationId, content);
+  const msg = await addAnalystMessage(conversationId, content, analystId);
   return { messageId: msg.id };
 }
 

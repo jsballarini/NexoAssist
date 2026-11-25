@@ -26,6 +26,7 @@ export async function GET(request: Request, { params }: Params) {
   }
 
   const messages = await listMessages(conversationId, since);
+  const analystFallbackName = conv.assignedAnalyst?.name ?? null;
   return NextResponse.json({
     items: messages.map((m) => ({
       id: m.id,
@@ -33,6 +34,10 @@ export async function GET(request: Request, { params }: Params) {
       content: m.content,
       uiBlocks: m.uiBlocks,
       createdAt: m.createdAt.toISOString(),
+      authorName:
+        m.role === "analyst"
+          ? (m.author?.name ?? analystFallbackName ?? "Analista")
+          : undefined,
       trace: m.agentTrace
         ? {
             understanding: m.agentTrace.understanding,

@@ -87,6 +87,7 @@ model User {
   tickets               Ticket[]
   ticketDrafts          TicketDraft[]
   ticketUpdates         TicketUpdate[]
+  analystMessages       Message[]      @relation("MessageAuthor")
 }
 
 model Conversation {
@@ -112,6 +113,9 @@ model Message {
   role           MessageRole
   content        String       @db.Text
   uiBlocks       Json?
+  /// Analista que enviou a mensagem (preenchido quando `role = analyst`).
+  authorUserId   String?
+  author         User?        @relation("MessageAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now())
   agentTrace     AgentTrace?
 }

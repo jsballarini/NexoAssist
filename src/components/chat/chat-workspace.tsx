@@ -31,7 +31,7 @@ function MessageSkeleton() {
   );
 }
 
-export function ChatWorkspace() {
+export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [meta, setMeta] = useState<ConvMeta | null>(null);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -91,6 +91,29 @@ export function ChatWorkspace() {
       cancelled = true;
     };
   }, [loadHistory, loadSessions, refreshMeta, viewingHistoryId]);
+
+  const handoffActive =
+    !viewingHistoryId &&
+    meta?.state !== undefined &&
+    (meta.state === "awaiting_analyst" || meta.state === "with_analyst");
+
+  useEffect(() => {
+    if (!handoffActive || !conversationId || streaming) return;
+    const tick = () => {
+      void loadHistory(conversationId, { silent: true });
+      void refreshMeta();
+    };
+    tick();
+    const id = setInterval(tick, handoffPollMs);
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [conversationId, handoffActive, handoffPollMs, loadHistory, refreshMeta, streaming]);
 
   async function handleNewSession() {
     const res = await fetch("/api/conversations/active/new-session", {

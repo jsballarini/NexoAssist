@@ -9,5 +9,7 @@ export function getAnalystPollConfig() {
     inboxIntervalMs: parse("ANALYST_POLL_INTERVAL_MS", 3000),
     inboxBackgroundMs: parse("ANALYST_POLL_BACKGROUND_MS", 10000),
     threadIntervalMs: parse("ANALYST_THREAD_POLL_MS", 2000),
+    /** Recarrega o histórico no chat do funcionário durante handoff (mensagens do analista). */
+    employeeHandoffPollMs: parse("ANALYST_THREAD_POLL_MS", 2000),
   };
 }

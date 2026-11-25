@@ -101,7 +101,10 @@ export async function listMessages(conversationId: string, since?: Date) {
       ...(since ? { createdAt: { gt: since } } : {}),
     },
     orderBy: { createdAt: "asc" },
-    include: { agentTrace: true },
+    include: {
+      agentTrace: true,
+      author: { select: { name: true } },
+    },
   });
 }
 
@@ -119,6 +122,7 @@ export async function listRecentMessages(conversationId: string, limit: number) 
 export async function getConversationForUser(conversationId: string, userId: string) {
   return prisma.conversation.findFirst({
     where: { id: conversationId, userId },
+    include: { assignedAnalyst: { select: { name: true } } },
   });
 }
 
@@ -187,13 +191,18 @@ export async function addSystemMessage(conversationId: string, content: string) 
   });
 }
 
-export async function addAnalystMessage(conversationId: string, content: string) {
+export async function addAnalystMessage(
+  conversationId: string,
+  content: string,
+  authorUserId: string,
+) {
   return prisma.$transaction(async (tx) => {
     const msg = await tx.message.create({
       data: {
         conversationId,
         role: "analyst" satisfies MessageRole,
         content,
+        authorUserId,
       },
     });
     await tx.conversation.update({
