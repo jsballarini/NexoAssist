@@ -87,6 +87,9 @@ describe("política de transferência no fim do turno (fixture)", () => {
     expect(result.trace.rulesFired).toContain("TRANSFER_SLA_BREACH");
     const qr = result.uiBlocks.find((b) => b.type === "quick_replies");
     expect(qr && qr.type === "quick_replies" && qr.options).toContain("Chamar um analista");
+    // G2-UI-03: opções derivadas dos dados reais, sem item fixo de FAQ.
+    expect(qr && qr.type === "quick_replies" && qr.options).not.toContain("Horário do service desk");
+    expect(qr && qr.type === "quick_replies" && qr.options.some((o) => /^Detalhes do [A-Z]+-\d+/.test(o))).toBe(true);
   });
 
   it("aceitar a oferta transfere por pedido do funcionário", async () => {

@@ -387,10 +387,7 @@ async function matchPlan(
         const focus = breached ?? tickets[0];
         blocks.push({
           type: "quick_replies",
-          options: [
-            ...(focus ? [`Detalhes do ${focus.id}`] : []),
-            "Horário do service desk",
-          ],
+          options: focus ? [`Detalhes do ${focus.id}`] : [],
         });
         return blocks;
       },
