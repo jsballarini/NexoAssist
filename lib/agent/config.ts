@@ -25,6 +25,12 @@ const DEFAULT_HISTORY_MAX_MESSAGES = 20;
 const DEFAULT_MAX_STEPS = 5;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
 
+const DEFAULT_LLM_TIMEOUT_MS = 45_000;
+
+export function getLlmTimeoutMs(): number {
+  return readPositiveInt("AGENT_LLM_TIMEOUT_MS", DEFAULT_LLM_TIMEOUT_MS);
+}
+
 export function getHistoryMaxMessages(): number {
   return readPositiveInt("AGENT_HISTORY_MAX_MESSAGES", DEFAULT_HISTORY_MAX_MESSAGES);
 }

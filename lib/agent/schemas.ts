@@ -3,6 +3,8 @@ import { z } from "zod";
 const MAX_UNDERSTANDING_CHARS = 400;
 const MAX_REASONING_CHARS = 1200;
 const MAX_CONTENT_CHARS = 4000;
+const MAX_QUICK_REPLIES = 4;
+const MAX_QUICK_REPLY_CHARS = 60;
 
 /** Decisão estruturada que o modelo reporta a cada turno (transparência PRD). */
 export const AgentDecisionSchema = z.object({
@@ -23,6 +25,15 @@ export const AgentDecisionSchema = z.object({
     .min(1)
     .max(MAX_REASONING_CHARS)
     .describe("Por que as ações foram escolhidas, em linguagem natural curta."),
+  outOfScope: z
+    .boolean()
+    .optional()
+    .describe("true quando o pedido não é de TI (RH, financeiro, facilities)."),
+  quickReplies: z
+    .array(z.string().trim().min(1).max(MAX_QUICK_REPLY_CHARS))
+    .max(MAX_QUICK_REPLIES)
+    .optional()
+    .describe("Opções rápidas para o funcionário responder a uma pergunta sua."),
 });
 
 export type AgentDecision = z.infer<typeof AgentDecisionSchema>;

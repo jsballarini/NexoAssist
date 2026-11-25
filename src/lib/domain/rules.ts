@@ -4,7 +4,13 @@ export type RuleId =
   | "KB_PARTIAL_MATCH"
   | "TICKET_SLA_BREACH"
   | "GREETING"
-  | "TICKET_LOOKUP";
+  | "TICKET_LOOKUP"
+  | "DRAFT_PROPOSED"
+  | "SLA_CRITICAL"
+  | "TRANSFER_TO_ANALYST"
+  | "NO_DECISION_REPORTED"
+  | "LLM_UNAVAILABLE"
+  | "TOOL_FAILED";
 
 const OUT_OF_SCOPE_RE =
   /\b(vale[-\s]?refeição|vale refeição|rh\b|benefício|beneficios|folha de pagamento|salário|ferias|férias|plano de saúde)\b/i;
