@@ -6,6 +6,26 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ## [Unreleased]
 
+## [0.8.0-m8.1] - 2026-11-24
+
+### Adicionado
+
+- **Agent em Mastra (G2-AG-01/03):** `lib/agent/mastra/` com tool calling sobre `lib/agent/tools.ts` e a ferramenta `report_decision` (`understanding`, `confidence`, `reasoning`, `quickReplies`, `outOfScope`); blocos de UI e regras disparadas derivados dos resultados reais das ferramentas.
+- **Contexto de conversa (G2-AG-02):** `TurnContext` (histórico, rascunho pendente, estado, chamado em foco) carregado por `loadTurnContext`; `findPendingDraft` (somente leitura) no ticket-service.
+- **Transparência (G2-AG-04):** `AgentTrace.reasoning` e `usage` (migração `20261124233000_agent_trace_reasoning`), emitidos no SSE (`trace` aditivo) e exibidos como "Por quê" no chat e no console do analista.
+- **Configuração:** `AGENT_HISTORY_MAX_MESSAGES`, `AGENT_MAX_STEPS`, `AGENT_MAX_OUTPUT_TOKENS`, `AGENT_LLM_TIMEOUT_MS`.
+- **Testes:** unit para ferramentas Mastra, stream adapter e falha do LLM; INT-CTX-01 e INT-TRACE-01; fixture com `pendingDraft` e sem acoplamento a usuário.
+
+### Alterado
+
+- Fixtures determinísticas só com `AGENT_EVAL_FIXTURES=true`; cenários data-driven (sem nome de usuário nem IDs fixos) e quick reply de escopo refaz o rascunho.
+- `rawToolCalls` passa a registrar as chamadas reais de ferramenta (antes `actions`).
+- Falha do LLM (HTTP, timeout, modelo sem tool calling) responde "assistente indisponível" e registra o erro no trace, sem fallback silencioso.
+
+### Removido
+
+- `lib/agent/llm-turn.ts` e `lib/agent/openrouter.ts` (planner + reescrita de texto), substituídos pelo agent Mastra.
+
 ## [0.7.1-m7.1] - 2026-11-24
 
 ### Adicionado

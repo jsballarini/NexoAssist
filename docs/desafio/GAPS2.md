@@ -1,7 +1,7 @@
 # Gaps 2 — comportamento real vs PRD v5
 
 **Data:** 2026-11-24  
-**Versão app analisada:** `0.7.1-m7.1` (+ trabalho não commitado: `lib/agent/llm-turn.ts`, `lib/agent/openrouter.ts`)  
+**Versão app analisada:** `0.7.1-m7.1` (análise original; Etapa 01 entregue em `0.8.0-m8.1`)  
 **Baseline:** [PRD v5](Desafio_Tecnico_Nexo_Assist_PRD_v5.pdf) + protótipo [nexo/nexo.pen](nexo/nexo.pen)
 
 Complementa [GAPS.md](GAPS.md). O `GAPS.md` mede a entrega contra a especificação interna (02-xx) e marca tudo como resolvido. Este documento mede o **comportamento do código** contra o PRD, com foco nos critérios de avaliação ("Qualidade das decisões", "Condução da conversa", "Transparência").
@@ -29,7 +29,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 
 ## A. Núcleo do agent
 
-### G2-AG-01 · C · O agent decide por regex, não por entendimento — `aberto`
+### G2-AG-01 · C · O agent decide por regex, não por entendimento — `resolvido`
+
+> **Resolução (0.8.0-m8.1):** `lib/agent/mastra/` expõe `runTool` como ferramentas Mastra; o modelo escolhe as ferramentas. A fixture (`AGENT_EVAL_FIXTURES=true`) ficou data-driven, sem nome de usuário nem IDs fixos.
 
 **PRD:** "O agent: decide o que fazer a cada mensagem"; critério *Qualidade das decisões*.
 
@@ -40,7 +42,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Qualquer problema de TI descrito livremente gera o fluxo correto (KB, consulta, rascunho ou transferência).
 - O modo fixture fica restrito a CI/evals determinísticos, sem regras dependentes de nome de usuário ou ID de chamado.
 
-### G2-AG-02 · C · O agent não recebe o histórico da conversa — `aberto`
+### G2-AG-02 · C · O agent não recebe o histórico da conversa — `resolvido`
+
+> **Resolução (0.8.0-m8.1):** `loadTurnContext` entrega histórico (`AGENT_HISTORY_MAX_MESSAGES`), rascunho pendente, estado e chamado em foco via `TurnContext`. Quick reply de escopo refaz o rascunho (cancel + create).
 
 **PRD:** histórias do funcionário 4 e 6; critério *Condução da conversa* ("mantém o contexto").
 
@@ -54,7 +58,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Responder "Só eu" a uma pergunta de escopo atualiza o rascunho em andamento.
 - Ao retomar uma sessão anterior, o agent consegue referenciar o assunto dela.
 
-### G2-AG-03 · C · Mastra / LangGraph.js não utilizados — `aberto`
+### G2-AG-03 · C · Mastra / LangGraph.js não utilizados — `resolvido`
+
+> **Resolução (0.8.0-m8.1):** `@mastra/core` em `lib/agent/mastra/`; fronteira `lib/agent/**` sem Prisma preservada (`INT-BOUNDARY-01`). Escolha documentada no README.
 
 **PRD:** Requisitos técnicos — "Agent: Mastra (preferência) ou LangGraph.js".
 
@@ -64,7 +70,9 @@ Verificado em 2026-11-24: `npx tsc --noEmit` sem erros (`strict: true`); `vitest
 - Agent implementado com `@mastra/core` (Agent + tools), reaproveitando as ferramentas de `lib/agent/tools.ts` e os adapters existentes.
 - README explica a escolha do framework e do modelo.
 
-### G2-AG-04 · M · Justificativa ("por quê") ausente no trace — `aberto`
+### G2-AG-04 · M · Justificativa ("por quê") ausente no trace — `resolvido`
+
+> **Resolução (0.8.0-m8.1):** `AgentTrace.reasoning` e `usage` (migração `20261124233000_agent_trace_reasoning`), emitidos no SSE e exibidos como "Por quê"; `rulesFired` derivado das ferramentas executadas (`trace-rules.ts`); decisão estruturada via `report_decision` (schema Zod). Rótulos legíveis das regras ficam para a Etapa 03.
 
 **PRD:** "ver em detalhe o que o agent entendeu, que ação tomou, com que grau de segurança e **por quê**". Marcada como a parte mais importante do desafio.
 

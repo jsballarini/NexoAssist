@@ -63,13 +63,15 @@ AGENT_EVAL_FIXTURES=false
 LLM_MAX_CONCURRENCY=2
 ```
 
-Sem chave, o agent usa **fixtures** (`AGENT_EVAL_FIXTURES=true` no `.env.example`) — adequado para CI.
+O agent roda em **Mastra** com tool calling; use um modelo com suporte a tools (recomendado `openai/gpt-4o-mini`). Se o LLM falhar (HTTP, timeout ou modelo sem tools), o chat responde "assistente indisponível" e o erro fica no trace — não há fallback silencioso para fixtures. As **fixtures** só rodam com `AGENT_EVAL_FIXTURES=true` (CI/evals).
+
+Ajustes opcionais: `AGENT_HISTORY_MAX_MESSAGES` (20), `AGENT_MAX_STEPS` (5), `AGENT_MAX_OUTPUT_TOKENS` (1024), `AGENT_LLM_TIMEOUT_MS` (45000).
 
 ### Perfis de ambiente (G-PRD-02)
 
 | Perfil | Quando | `AGENT_EVAL_FIXTURES` | LLM |
 |--------|--------|------------------------|-----|
-| **Local dev** | `npm run dev` | `true` (default) ou `false` com OpenRouter | Opcional |
+| **Local dev** | `npm run dev` | `true` (default no `.env.example`) ou `false` com OpenRouter | Opcional |
 | **CI / E2E** | GHA jobs `test` + `e2e`, Playwright local | `true` (obrigatório) | Desligado |
 | **Demo LLM** | Entrevista / staging | `false` + `OPENROUTER_API_KEY` | OpenRouter |
 
@@ -122,7 +124,7 @@ Detalhes: [`.env.example`](.env.example), [02-09](docs/02-especificacao/02-09-va
 
 | Tema | Decisão | Motivo |
 |------|---------|--------|
-| Agent runtime | Orchestrator em `lib/agent/` + fixture CI | Evals/E2E determinísticos; Mastra opcional futuro |
+| Agent runtime | Mastra (`@mastra/core`) em `lib/agent/mastra/` com tool calling sobre `lib/agent/tools.ts`; fixture só em CI | Decisão por entendimento do modelo, com histórico e rascunho pendente; evals/E2E determinísticos |
 | LLM default | `AGENT_EVAL_FIXTURES=true` sem API key | CI e onboarding sem custo |
 | E2E | Porta **3099** dedicada | Evita colisão com `next dev` :3000 |
 | Mutação tickets | Sempre via draft confirmado | Único writer `ticket-service`; dedup Anexo A |
