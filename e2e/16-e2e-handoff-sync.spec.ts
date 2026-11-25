@@ -3,6 +3,7 @@ import { loginAsRafael, resetAnalystTransferSeeds } from "./auth";
 
 const CARLA_EMAIL = "carla.mendes@nexo.com.br";
 const SYNC_TEXT = "Mensagem do Rafael — sincronização handoff E2E";
+const CARLA_REPLY = "Oi Rafael, recebi sua mensagem — Carla";
 
 async function loginAsCarla(browser: Browser) {
   const context = await browser.newContext();
@@ -39,6 +40,13 @@ test("E2E-HANDOFF-SYNC: mensagem do analista aparece no chat da funcionária sem
     const bubble = carla.page.locator('[data-message-role="analyst"]').filter({ hasText: SYNC_TEXT });
     await expect(bubble).toBeVisible();
     await expect(bubble.locator("[data-analyst-label]")).toContainText("Rafael Lima");
+
+    const employeeComposer = carla.page.getByPlaceholder("Mensagem para o analista…");
+    await expect(employeeComposer).toBeEnabled();
+    await employeeComposer.fill(CARLA_REPLY);
+    await carla.page.getByRole("button", { name: "Enviar" }).click();
+    await expect(carla.page.getByText(CARLA_REPLY)).toBeVisible();
+    await expect(page.getByText(CARLA_REPLY)).toBeVisible({ timeout: 12_000 });
   } finally {
     await carla.context.close();
   }

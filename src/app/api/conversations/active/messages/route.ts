@@ -2,7 +2,6 @@ import { getSession } from "@/lib/auth/session";
 import { postUserMessage } from "@/lib/conversation";
 import {
   ConversationAwaitingAnalystError,
-  ConversationWithAnalystError,
   SessionMessageLimitError,
 } from "@/lib/conversation/types";
 import { prisma } from "@/lib/db";
@@ -57,12 +56,6 @@ export async function POST(request: Request) {
       );
     }
     if (error instanceof ConversationAwaitingAnalystError) {
-      return NextResponse.json(
-        { error: error.message, code: error.code },
-        { status: 423 },
-      );
-    }
-    if (error instanceof ConversationWithAnalystError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
         { status: 423 },

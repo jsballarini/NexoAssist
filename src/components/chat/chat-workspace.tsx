@@ -109,6 +109,7 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
     toast,
     clearToast,
     sendMessage,
+    sendHandoffMessage,
     loadHistory,
     confirmDraft,
     cancelDraft,
@@ -184,12 +185,16 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
     if (active) await loadHistory(active.conversationId);
   }
 
+  const historyMode = viewingHistoryId !== null;
+  const awaiting = meta?.state === "awaiting_analyst";
+  const withAnalyst = meta?.state === "with_analyst";
+
   async function handleSend(text?: string) {
     if (viewingHistoryId) return;
     const content = (text ?? input).trim();
     if (!content) return;
     setInput("");
-    const result = await sendMessage(content);
+    const result = withAnalyst ? await sendHandoffMessage(content) : await sendMessage(content);
     if (!result.ok) {
       if (result.code === "SESSION_MESSAGE_LIMIT" || result.status === 429) {
         setShowLimitModal(true);
@@ -197,18 +202,13 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
       await refreshMeta();
     }
   }
-
-  const historyMode = viewingHistoryId !== null;
-  const awaiting = meta?.state === "awaiting_analyst";
-  const withAnalyst = meta?.state === "with_analyst";
-  const atLimit = meta ? meta.messageCount >= meta.messageLimit : false;
+  const atLimit =
+    meta && !withAnalyst ? meta.messageCount >= meta.messageLimit : false;
   const composerDisabled =
-    historyMode ||
-    streaming ||
-    !conversationId ||
-    awaiting ||
-    withAnalyst ||
-    atLimit;
+    historyMode || streaming || !conversationId || awaiting || atLimit;
+  const composerPlaceholder = withAnalyst
+    ? "Mensagem para o analista…"
+    : "Escreva para o Nexo…";
 
   const showSkeleton = !conversationId || historyLoading;
 
@@ -293,8 +293,8 @@ export function ChatWorkspace({ handoffPollMs = 2000 }: { handoffPollMs?: number
               className="h-9"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Escreva para o Nexo…"
-              aria-label="Mensagem para o Nexo"
+              placeholder={composerPlaceholder}
+              aria-label={withAnalyst ? "Mensagem para o analista" : "Mensagem para o Nexo"}
               disabled={composerDisabled}
             />
             <Button

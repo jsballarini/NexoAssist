@@ -287,6 +287,43 @@ export function useChatStream(
     return { ok: true };
   }
 
+  const sendHandoffMessage = useCallback(
+    async (content: string): Promise<SendResult> => {
+      if (!conversationId || !content.trim()) {
+        return { ok: false, message: "Conversa indisponível", status: 0 };
+      }
+
+      const optimisticId = crypto.randomUUID();
+      setMessages((prev) => [...prev, { id: optimisticId, role: "user", content }]);
+
+      const res = await fetch("/api/conversations/active/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        return {
+          ok: false,
+          message: body.error ?? "Não foi possível enviar a mensagem",
+          code: body.code,
+          status: res.status,
+        };
+      }
+
+      const data = (await res.json()) as { userMessageId?: string };
+      if (data.userMessageId) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === optimisticId ? { ...m, id: data.userMessageId! } : m)),
+        );
+      }
+      return { ok: true };
+    },
+    [conversationId],
+  );
+
   return {
     messages,
     historyLoading,
@@ -295,6 +332,7 @@ export function useChatStream(
     toast,
     clearToast: () => setToast(null),
     sendMessage,
+    sendHandoffMessage,
     loadHistory,
     confirmDraft,
     cancelDraft,

@@ -15,6 +15,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a 
 
 ### Corrigido
 
+- **Chat com analista humano (`with_analyst`):** funcionário volta a digitar (placeholder “Mensagem para o analista…”); `POST /api/conversations/active/messages` persiste mensagem sem invocar o agente. Em `awaiting_analyst` o composer continua bloqueado (423).
 - **Dois `next dev` na mesma pasta:** Playwright usa `NEXT_DIST_DIR=.next-playwright` para não corromper `.next` do `npm run dev` (:3000) — evita `ENOENT` em `app-paths-manifest.json` e 500 nas rotas de API.
 
 ### Alterado

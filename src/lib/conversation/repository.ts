@@ -213,6 +213,24 @@ export async function addAnalystMessage(
   });
 }
 
+/** Mensagem da funcionária com analista humano ativo (não conta no limite do agent). */
+export async function addEmployeeHandoffMessage(conversationId: string, content: string) {
+  return prisma.$transaction(async (tx) => {
+    const msg = await tx.message.create({
+      data: {
+        conversationId,
+        role: "user" satisfies MessageRole,
+        content,
+      },
+    });
+    await tx.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+    return msg;
+  });
+}
+
 export async function getConversationById(conversationId: string) {
   return prisma.conversation.findUnique({
     where: { id: conversationId },

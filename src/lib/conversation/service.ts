@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import {
+  addEmployeeHandoffMessage,
   addUserMessage,
   archiveAndCreateNew,
   findActiveConversation,
@@ -8,7 +9,6 @@ import {
 import { executeTurn } from "./turn-runner";
 import {
   ConversationAwaitingAnalystError,
-  ConversationWithAnalystError,
   MESSAGE_LIMIT,
   SessionMessageLimitError,
 } from "./types";
@@ -57,7 +57,12 @@ export async function postUserMessage(
   }
 
   if (conv.state === "with_analyst") {
-    throw new ConversationWithAnalystError();
+    const userMsg = await addEmployeeHandoffMessage(conv.id, content);
+    return {
+      conversationId: conv.id,
+      userMessageId: userMsg.id,
+      handoff: true as const,
+    };
   }
 
   if (conv.messageCount >= MESSAGE_LIMIT) {
